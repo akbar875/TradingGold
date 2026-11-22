@@ -58,7 +58,8 @@ CLI 97%, data quality 100%, MT5 client 100%. JUnit dan coverage di `reports/`.
 Hash keenam baseline ikut diverifikasi oleh tes dan tidak berubah.
 
 18 tes baru menjalankan runner PowerShell asli dalam workspace fixture berspasi.
-Tes memverifikasi dua format ringkasan sukses (log UTF-16 BOM), compiler/source/
+Tes memverifikasi dua format ringkasan sukses (log UTF-16 BOM), termasuk
+WaitForExit/Refresh/ExitCode pada proses PowerShell nyata yang exit 0; compiler/source/
 include tidak tersedia, timeout invalid, launch failure setelah PASS lama,
 timeout dengan proses PowerShell nyata yang dipastikan berhenti, exit compiler
 nonzero, log 10 errors/warning/summary ambigu/diagnostic error/hilang, dan EX5
@@ -76,6 +77,11 @@ Runner baru memakai `/include` dan `/log` sesuai
 workspace build unik, log summary tunggal 0 errors/0 warnings, EX5 baru tidak
 kosong, timeout 120 detik (1..600), dan reason code dengan exit 0/1/2.
 Status run sebelumnya dibatalkan sebelum validasi/launch.
+
+CI [run PR #36](https://github.com/akbar875/TradingGold/actions/runs/45053773769)
+pada `f7a249b`: keempat job Windows/Linux × Python 3.11/3.12 PASS.
+Job Windows menjalankan 96 tes; job Linux melewati 18 kontrak runner Windows
+secara eksplisit. Hasil ini tidak menyatakan kompilasi MetaEditor PASS.
 
 ## Verifikasi manual yang masih dibutuhkan
 

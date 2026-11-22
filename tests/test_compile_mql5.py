@@ -58,6 +58,12 @@ function global:Start-Process {
         $child.Id | Set-Content -LiteralPath "$PSScriptRoot/child.pid"
         return $child
     }
+    if ($global:Case -eq 'success') {
+        # Validate WaitForExit/Refresh/ExitCode on an actual native process too.
+        return Microsoft.PowerShell.Management\Start-Process `
+            -FilePath (Get-Process -Id $PID).Path -WindowStyle Hidden -PassThru `
+            -ArgumentList @('-NoProfile','-Command','exit 0')
+    }
     $result = [pscustomobject]@{ ExitCode = $(if ($global:Case -eq 'nonzero') { 7 } else { 0 }) }
     $result | Add-Member ScriptMethod WaitForExit { param($ms) return $true }
     $result | Add-Member ScriptMethod Refresh {}
