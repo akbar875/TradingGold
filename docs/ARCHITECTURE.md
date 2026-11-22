@@ -9,9 +9,10 @@ registry -> inference -> atomic bridge Common Files -> EA technical/risk gates.
 EA kelak menjadi satu-satunya pemilik order dan posisi; logs/journal -> dashboard
 read-only. Riset/backtest terpisah dari jalur broker.
 
-Alur yang tersedia: YAML -> Settings tervalidasi -> CLI/show-config/doctor.
-Doctor mengimpor MT5 secara lazy dan hanya membaca diagnostik. Offline mode tidak
-menginisialisasi MT5. EA menampilkan status WAIT; dashboard menampilkan empty states.
+Alur yang tersedia: YAML -> Settings tervalidasi -> CLI/show-config/doctor/fetch-data.
+Adapter mengimpor MT5 secara lazy. Doctor membaca diagnostik, dan fetch-data
+meneruskan candle MT5 tertutup ke validator sebelum mencetak JSON. Offline mode
+tidak menginisialisasi MT5. EA menampilkan WAIT dan dashboard menampilkan empty states.
 
 ## Kontrak dan peta pengembangan
 
@@ -19,7 +20,7 @@ menginisialisasi MT5. EA menampilkan status WAIT; dashboard menampilkan empty st
 |---|---|---|
 | config.py | Settings immutable, validasi key YAML dan nilai | Tersedia, signal-only dipaksakan |
 | contracts.py | Bar UTC, Action, Decision, FeatureBuilder, Predictor | Kontrak fondasi |
-| mt5_client.py | Diagnostik read-only dengan masking | Awal; AU-005 belum selesai |
+| mt5_client.py | Diagnostik broker/akun/simbol dengan masking dan pembacaan closed bars M15/H1/H4 | AU-005, terverifikasi offline |
 | data_quality.py | OHLC finite, timestamp terurut, closed-bar, gap report | Awal; AU-006 belum selesai |
 | features.py, labels.py | Fitur kausal dan label horizon | Direncanakan AU-017/018 |
 | walk_forward.py, train.py | Purge/embargo, RF deterministik, laporan OOS | Direncanakan AU-019 |

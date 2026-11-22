@@ -41,3 +41,41 @@ NOT RUN bila MetaEditor tidak tersedia.
 `METAEDITOR_PATH` dapat ditentukan melalui environment. .env.example hanya contoh;
 script tidak otomatis memuat .env. Source build dan data terminal memiliki lokasi
 berbeda. Jangan menganggap perubahan YAML mengubah preset EA secara otomatis.
+
+## Diagnostik dan history Python
+
+Pasang ekstra `[mt5]` sesuai README. Gunakan terminal demo yang sudah login dan
+nama simbol persis, misalnya `XAUUSDm`. Adapter memakai sesi yang ditemukan
+terminal melalui `initialize()`. Pemilihan simbol bisa menambahkannya ke Market
+Watch. Seluruh operasi tetap berstatus `WAIT` dengan `execution_available=false`.
+
+- `doctor --offline` melaporkan `OFFLINE / BROKER_NOT_CHECKED`, exit 0.
+- `doctor --symbol XAUUSDm` melaporkan koneksi, izin terminal/akun/simbol,
+  snapshot akun dengan login masked, mata uang, leverage dan margin aktual,
+  properti simbol sesuai broker, serta bid/ask dan spread dalam points. Login
+  satu atau dua digit ditutup seluruhnya. Leverage 1:2000 hanya dilaporkan
+  sebagai kecocokan pada mode signal-only.
+- Doctor memeriksa dua candle tertutup per timeframe M15/H1/H4 dan keberadaan
+  direktori `Files` di `commondata_path` tanpa menulis atau mencetak path tersebut.
+  Tick harus berumur 0–120 detik dan memiliki bid positif serta ask minimal
+  sebesar bid. Quote dengan ask sama seperti bid dilaporkan sebagai spread nol.
+  Doctor mengembalikan exit 0 dengan `CONNECTED / DIAGNOSTICS_ONLY` jika
+  pemeriksaan tersebut siap. Exit 1 dengan `NOT_READY` menyertakan reason code
+  dan status per pemeriksaan yang sempat berjalan. Freshness model belum
+  tersedia dan tetap dilaporkan sebagai `NOT_IMPLEMENTED`.
+- `fetch-data --symbol XAUUSDm --timeframe M15 --bars 10000` menerima
+  M15/H1/H4 dan 1–100.000 bar. Default M15 dan 10.000 bar. Exit 0
+  mengembalikan `READY`, metadata sumber/simbol/timeframe/point, dan candle
+  OHLC, tick volume serta spread dalam broker points. Field `time` adalah
+  timestamp open UTC dalam detik Unix. Data ini juga bisa dibaca saat izin
+  trading dimatikan. Argumen invalid exit 2, kegagalan baca/validasi exit 1
+  tanpa kumpulan candle parsial.
+
+Kedua perintah membaca mulai dari posisi 1 dan memeriksa ulang timestamp candle
+serta identitas sesi. History menjadi `DATA_STALE` jika umur penutupan bar
+terbaru mencapai satu interval timeframe, termasuk saat pasar tutup. Gap
+historis tetap terlihat pada `gap_timestamps_utc`, yang berisi waktu open bar
+sesudah gap. Kelengkapan history bergantung pada broker dan pengaturan
+**Max. bars in chart**. Klasifikasi gap berdasarkan sesi dilacak di AU-006.
+Dasar posisi bar dan batas history ada di
+[referensi MetaQuotes](https://www.mql5.com/en/docs/python_metatrader5/mt5copyratesfrompos_py).
