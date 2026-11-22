@@ -33,3 +33,7 @@ Git lokal diinisialisasi pada main dan origin diarahkan ke repo pengguna.
 Source awal dipertahankan tanpa perubahan. Hash SHA256 tercatat di
 `docs/BASELINE_HASHES.json`. Runtime v2, training broker, compile MQL5 dan demo
 forward belum dijalankan. Laporan tes fondasi di `TEST_REPORT.md`.
+
+Commit audit awal adalah `5263159`. Tes
+`test_baseline_files_match_original_sha256` memeriksa keenam nama dan hash
+SHA256 berkas asli pada rangkaian pytest lokal dan CI.

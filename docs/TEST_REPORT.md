@@ -7,11 +7,11 @@ untuk QA. Tidak ada login broker atau operasi order yang dijalankan.
 
 | Pemeriksaan | Status | Bukti / perintah |
 |---|---|---|
-| Inspeksi 6 berkas awal dan preservasi hash | PASS | BASELINE_AUDIT.md, BASELINE_HASHES.json, seluruh SHA256 cocok |
+| Inspeksi 6 berkas awal dan preservasi hash | PASS | Seluruh SHA256 cocok. Tes regresi membandingkan keenam berkas dengan BASELINE_HASHES.json dan ikut dijalankan oleh pytest di CI. |
 | Sintaks Python (15 file), TOML dan JSON | PASS | ast.parse, compileall, tomllib, json.loads |
 | Sintaks PowerShell 4 script | PASS | System.Management.Automation.Language.Parser |
 | Struktur YAML workflow CI | PASS | safe_load dan pemeriksaan matrix OS serta permissions |
-| Pytest fondasi | PASS | `python -m pytest -q --junitxml=reports/pytest.xml`: 54 passed |
+| Pytest fondasi | PASS | `scripts/test_offline.ps1`: 67 passed setelah tindak lanjut AU-001 dan AU-002 |
 | Publisher dry-run | PASS | `python scripts/publish_issues.py --dry-run --provider auto`: 33 issue |
 | .gitignore runtime/privacy | PASS | git check-ignore .env, data/private.csv, logs/private.jsonl, models/private.joblib dan .venv |
 | Instal editable / import | PASS | `pip install --no-index --no-build-isolation -e ".[dev]"` setelah dependensi tersedia, `aurum.cli doctor --offline` menunjukkan SIGNAL_ONLY |
@@ -35,7 +35,10 @@ dry-run tanpa jaringan dan skip marker issue existing.
 
 Pada run awal ada error temp sandbox pytest dan mock importlib yang terlalu luas.
 Temp dipindah ke reports/pytest-tmp dan mock dibatasi pada modul adapter. Run ulang
-54 tes PASS. Fixture/mock bukan data broker atau bukti integrasi MT5.
+54 tes PASS. Tindak lanjut AU-001/AU-002 menambah regresi untuk hash keenam
+baseline, YAML ambigu atau invalid, angka di luar rentang float, dan konfigurasi
+efektif dari override simbol. Tes diagnostik memakai mock. Verifikasi MetaEditor
+dan broker tidak dijalankan ulang pada tindak lanjut ini.
 
 ## Verifikasi manual yang masih dibutuhkan
 

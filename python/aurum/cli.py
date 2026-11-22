@@ -3,6 +3,7 @@
 import argparse
 import json
 import platform
+from dataclasses import replace
 from pathlib import Path
 
 from aurum import __version__
@@ -38,10 +39,11 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
     try:
         settings = load_config(args.config)
+        if args.symbol is not None:
+            settings = replace(settings, symbol=args.symbol)
     except (OSError, ValueError) as exc:
         print(json.dumps({"status": "ERROR", "reason": str(exc)}, ensure_ascii=False))
         return 2
-    symbol = args.symbol or settings.symbol
     if args.command == "show-config":
         print(json.dumps(settings.to_dict(), indent=2))
         return 0
@@ -67,7 +69,7 @@ def main(argv: list[str] | None = None) -> int:
         status.update({"status": "OFFLINE", "reason_code": "BROKER_NOT_CHECKED"})
     else:
         try:
-            status.update(diagnose(symbol))
+            status.update(diagnose(settings.symbol))
         except Exception:
             status.update({"status": "NOT_READY", "reason_code": "MT5_DIAGNOSTICS_FAILED"})
     print(json.dumps(status, indent=2, ensure_ascii=False))
