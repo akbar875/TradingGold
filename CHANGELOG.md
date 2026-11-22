@@ -1,5 +1,14 @@
 # Changelog
 
+## Unreleased — 23 November 2026
+
+- AU-004: compile terisolasi per run, parameter CLI MetaEditor resmi, timeout,
+  validasi ringkasan log dan EX5 baru, serta status kegagalan dengan reason code.
+- Regresi runner Windows mencakup false PASS, stale evidence, launch failure,
+  timeout proses nyata, dan error input/output; compile MetaEditor tetap NOT RUN.
+- Publisher completion opt-in memverifikasi issue milik sendiri dan PR merged
+  ke main; default dry-run tetap dipertahankan.
+
 ## 0.3.0.dev0 — 22 November 2026
 
 - Audit keenam berkas awal dan preservasi baseline v2.

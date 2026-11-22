@@ -81,3 +81,56 @@ def test_publisher_skips_existing_marker(monkeypatch):
 def test_json_schema_itself_is_valid():
     schema = json.loads((ROOT / "config/signal.schema.json").read_text())
     jsonschema.Draft202012Validator.check_schema(schema)
+
+
+def test_completion_dry_run_never_contacts_github(monkeypatch, capsys):
+    def run(args):
+        assert args[0] == "git"
+        return "https://github.com/akbar875/TradingGold.git"
+
+    monkeypatch.setattr(publisher, "run", run)
+    assert publisher.main(["--complete", "AU-004", "--pull-request", "36"]) == 0
+    assert json.loads(capsys.readouterr().out)["status"] == "DRY_RUN"
+
+
+@pytest.mark.parametrize("failure", [None, "other-owner", "unmerged", "other-base", "unlinked"])
+def test_completion_requires_owned_issue_and_merged_linked_pr(monkeypatch, failure):
+    calls = []
+
+    def run(args):
+        calls.append(args)
+        if args[:3] == ["gh", "api", "user"]:
+            return "owner"
+        if args[:3] == ["gh", "issue", "list"]:
+            return json.dumps(
+                [
+                    {
+                        "number": 4,
+                        "title": "[AU-004] Compile",
+                        "state": "OPEN",
+                        "author": {"login": "other" if failure == "other-owner" else "owner"},
+                    }
+                ]
+            )
+        if args[:2] == ["gh", "api"]:
+            return json.dumps(
+                {
+                    "merged_at": None if failure == "unmerged" else "2026-11-23T00:00:00Z",
+                    "base": {
+                        "ref": "dev" if failure == "other-base" else "main",
+                        "repo": {"full_name": "owner/repo"},
+                    },
+                    "body": "Closes #5" if failure == "unlinked" else "Closes #4",
+                }
+            )
+        assert args[:3] == ["gh", "issue", "close"]
+        return "closed"
+
+    monkeypatch.setattr(publisher, "run", run)
+    if failure:
+        with pytest.raises(ValueError):
+            publisher.complete_issue("owner/repo", "AU-004", 36)
+        assert not any(args[:3] == ["gh", "issue", "close"] for args in calls)
+    else:
+        publisher.complete_issue("owner/repo", "AU-004", 36)
+        assert calls[-1][:4] == ["gh", "issue", "close", "4"]
