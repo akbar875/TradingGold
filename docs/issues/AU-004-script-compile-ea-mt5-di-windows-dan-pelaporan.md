@@ -5,7 +5,7 @@
 - Epic / label: area:mql5, priority:P0, type:feature
 - Dependencies: AU-002
 - Publication: [GitHub #4](https://github.com/akbar875/TradingGold/issues/4)
-- PR/commit: branch `codex/au-004-compile-reporting`; bukti di [TEST_REPORT](../TEST_REPORT.md).
+- PR/commit: [PR #36](https://github.com/akbar875/TradingGold/pull/36), implementasi `3c4b2e4`; bukti di [TEST_REPORT](../TEST_REPORT.md).
 
 ## Latar belakang
 

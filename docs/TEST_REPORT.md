@@ -50,7 +50,8 @@ dan broker tidak dijalankan ulang pada tindak lanjut ini.
 
 ## AU-004 — runner compile dan pelaporan, 23 November 2026
 
-Branch `codex/au-004-compile-reporting`, Windows PowerShell 7, Python 3.12.14.
+Branch `codex/au-004-compile-reporting`, [PR #36](https://github.com/akbar875/TradingGold/pull/36),
+commit implementasi `3c4b2e4`, Windows PowerShell 7, Python 3.12.14.
 Dependency AU-002 DONE. `scripts/test_offline.ps1` PASS: **96 passed, tanpa skip**,
 17 file lolos format/lint, 6 modul lolos mypy. Coverage safety tetap config 99%,
 CLI 97%, data quality 100%, MT5 client 100%. JUnit dan coverage di `reports/`.
