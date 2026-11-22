@@ -8,10 +8,9 @@ from pathlib import Path
 
 from aurum import __version__
 from aurum.config import load_config
-from aurum.mt5_client import diagnose
+from aurum.mt5_client import TIMEFRAME_SECONDS, diagnose, fetch_history
 
 PENDING = {
-    "fetch-data": "AU-005/AU-006",
     "train": "AU-017/AU-018/AU-019",
     "evaluate": "AU-019/AU-020",
     "predict": "AU-020/AU-021",
@@ -25,7 +24,7 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Aurum MT5 — scaffolding SIGNAL ONLY")
     parser.add_argument("--version", action="version", version=__version__)
     commands = parser.add_subparsers(dest="command", required=True)
-    for name in ("doctor", "show-config", *PENDING):
+    for name in ("doctor", "fetch-data", "show-config", *PENDING):
         sub = commands.add_parser(name)
         sub.add_argument("--config", type=Path, default=Path("config/default.yaml"))
         sub.add_argument("--symbol")
@@ -35,7 +34,7 @@ def main(argv: list[str] | None = None) -> int:
             sub.add_argument("--once", action="store_true")
         if name == "fetch-data":
             sub.add_argument("--bars", type=int, default=10000)
-            sub.add_argument("--timeframe", default="M15")
+            sub.add_argument("--timeframe", choices=TIMEFRAME_SECONDS)
     args = parser.parse_args(argv)
     try:
         settings = load_config(args.config)
@@ -64,16 +63,24 @@ def main(argv: list[str] | None = None) -> int:
         "python": platform.python_version(),
         "mode": "SIGNAL_ONLY",
         "execution_available": False,
+        "action": "WAIT",
     }
-    if args.offline:
+    if args.command == "doctor" and args.offline:
         status.update({"status": "OFFLINE", "reason_code": "BROKER_NOT_CHECKED"})
     else:
         try:
-            status.update(diagnose(settings.symbol))
+            if args.command == "fetch-data":
+                status.update(
+                    fetch_history(settings.symbol, args.timeframe or settings.timeframe, args.bars)
+                )
+            else:
+                status.update(diagnose(settings.symbol))
         except Exception:
             status.update({"status": "NOT_READY", "reason_code": "MT5_DIAGNOSTICS_FAILED"})
-    print(json.dumps(status, indent=2, ensure_ascii=False))
-    return 0 if status["status"] in ("OFFLINE", "CONNECTED") else 1
+    print(json.dumps(status, indent=2, ensure_ascii=False, allow_nan=False))
+    if status["status"] == "ERROR":
+        return 2
+    return 0 if status["status"] in ("OFFLINE", "CONNECTED", "READY") else 1
 
 
 if __name__ == "__main__":

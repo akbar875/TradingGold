@@ -32,9 +32,17 @@ Laporan pytest dan coverage tersedia di `reports/`.
 .\.venv\Scripts\python.exe -m aurum.cli doctor --symbol XAUUSDm
 ```
 
-Gunakan nama simbol broker persis. Diagnostik awal memeriksa koneksi, akun masked,
-leverage, izin dan tick/spread. Pemeriksaan history, Common Files dan freshness
-model belum lengkap (AU-005). Tidak perlu memasukkan kredensial ke repo.
+Gunakan nama simbol broker persis dan terminal demo yang sudah login. Doctor
+memeriksa koneksi, akun masked, izin, properti simbol dan margin, tick, history
+M15/H1/H4, serta keberadaan folder Common Files. Lihat
+[kontrak diagnostik dan data](docs/INSTALL_WINDOWS_MT5.md#diagnostik-dan-history-python).
+
+```powershell
+.\.venv\Scripts\python.exe -m aurum.cli fetch-data --symbol XAUUSDm --timeframe M15 --bars 10000
+```
+
+`fetch-data` membaca candle tertutup dari terminal dan mencetak JSON ke stdout.
+Jangan commit keluaran yang berisi data broker atau informasi akun.
 
 ## Dashboard awal
 
@@ -49,7 +57,7 @@ koneksi tetap belum diperiksa; tidak ada harga atau performa buatan.
 ## Struktur
 
 ```text
-python/aurum/       konfigurasi, kontrak tipe, validator closed-bar, doctor, CLI
+python/aurum/       konfigurasi, kontrak tipe, validator closed-bar, doctor dan history MT5
 mt5/               EA diagnostik, Include/Aurum, preset non-eksekusi
 dashboard/         Streamlit read-only
 config/            default aman dan kontrak JSON Schema bridge
@@ -69,7 +77,7 @@ live. Lihat [audit](docs/BASELINE_AUDIT.md) dan [arsitektur](docs/ARCHITECTURE.m
 ## Pekerjaan berikutnya
 
 33 seed issue tersedia di [backlog](docs/ISSUES_BACKLOG.md). Perintah produk akhir
-`fetch-data`, `train`, `evaluate`, `predict`, `run`, `backtest`, `export-signals`
+`train`, `evaluate`, `predict`, `run`, `backtest`, `export-signals`
 sudah mempunyai antarmuka CLI, tetapi mengembalikan `NOT_IMPLEMENTED` dan exit 2.
 Jangan mengartikannya sebagai pipeline yang sudah berjalan.
 

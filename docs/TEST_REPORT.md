@@ -83,6 +83,27 @@ pada `f7a249b`: keempat job Windows/Linux × Python 3.11/3.12 PASS.
 Job Windows menjalankan 96 tes; job Linux melewati 18 kontrak runner Windows
 secara eksplisit. Hasil ini tidak menyatakan kompilasi MetaEditor PASS.
 
+## AU-005 — diagnostik broker dan history MT5, 23 November 2026
+
+[PR #37](https://github.com/akbar875/TradingGold/pull/37), commit implementasi
+`3b0d22c`, Windows PowerShell 7 dan Python 3.12.14. `scripts/test_offline.ps1`
+PASS dengan **145 tes**, 17 file lulus Ruff, dan 6 modul lulus mypy. Coverage
+branch safety config 99%, CLI 97%, data quality 100%, adapter MT5 99%.
+Regresi hash enam baseline ikut lulus.
+
+Tes mock memeriksa suffix persis, metadata broker, leverage aktual, masking
+akun, izin ditolak, quote basi dan spread nonfinite. Untuk M15/H1/H4, tes
+memeriksa posisi 1, missing/short history, candle berjalan, NaN, duplikasi,
+urutan terbalik, history basi, dan pelaporan gap. Tes perubahan sesi
+memastikan data dibuang dan koneksi ditutup. Kedua perintah juga diuji dari
+shell tanpa paket MT5. Keduanya mengembalikan `NOT_READY /
+MT5_PACKAGE_MISSING` dan exit 1.
+
+Integrasi MT5/broker demo **NOT RUN** karena paket MT5 tidak terpasang dan
+terminal demo tidak tersedia untuk verifikasi. Kompilasi EA **NOT RUN** karena
+MetaEditor tidak tersedia. Mode safe tetap diuji offline. Klasifikasi gap sesi
+dan freshness registry model dilacak di AU-006 dan AU-020.
+
 ## Verifikasi manual yang masih dibutuhkan
 
 - Compile source dan include pada MetaEditor, periksa log/artifact baru.
