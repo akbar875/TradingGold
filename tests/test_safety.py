@@ -5,6 +5,7 @@ from pathlib import Path
 from aurum.config import load_config
 
 ROOT = Path(__file__).resolve().parents[1]
+PRESETS = ROOT / "mt5/Presets"
 
 
 def test_python_has_no_order_or_position_mutation_calls():
@@ -26,11 +27,20 @@ def test_ea_foundation_has_no_execution_api():
 
 
 def test_presets_keep_auto_disabled():
-    for path in (ROOT / "mt5/Presets").glob("*.set"):
-        text = path.read_text()
-        assert "InpEnableAutoTrade=false" in text
-        assert "InpSignalOnly=true" in text
-        assert "InpDemoOnly=true" in text
+    presets = sorted(PRESETS.glob("*.set"))
+    required = {"Signal_Only.set", "Demo_Conservative.set"}
+    assert required <= {path.name for path in presets}
+    for path in presets:
+        settings = {
+            name: value.split("||", 1)[0].strip()
+            for line in path.read_text(encoding="utf-8").splitlines()
+            if not line.lstrip().startswith(";")
+            for name, sep, value in (line.partition("="),)
+            if sep
+        }
+        assert settings.get("InpEnableAutoTrade") == "false", path
+        assert settings.get("InpSignalOnly") == "true", path
+        assert settings.get("InpDemoOnly") == "true", path
 
 
 def test_shared_python_mql_defaults_match():

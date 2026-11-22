@@ -1,11 +1,11 @@
 # [AU-003] CI Python, formatting, lint, typing dan pytest
 
-- Status: IN_PROGRESS
+- Status: DONE
 - Priority: P0
 - Epic / label: area:infra, priority:P0, type:feature
 - Dependencies: AU-002
-- Publication: NOT PUBLISHED
-- PR/commit: lihat riwayat Git; belum ada PR khusus issue ini.
+- Publication: [GitHub #3](https://github.com/akbar875/TradingGold/issues/3)
+- PR/commit: [PR #35](https://github.com/akbar875/TradingGold/pull/35), implementasi `2bdeab2`.
 
 ## Latar belakang
 
@@ -20,24 +20,25 @@ implementasi, bukan klaim source sudah lengkap.
 
 ## Tasks
 
-- [ ] Verifikasi dependensi issue dan kontrak input/output.
-- [ ] Implementasikan scope di atas dengan reason code dan fail-closed path.
-- [ ] Tambahkan kasus positif, negatif, dan regression yang relevan.
-- [ ] Perbarui dokumentasi, konfigurasi, serta bukti di docs/TEST_REPORT.md.
-- [ ] Review acceptance dan tautkan PR/commit sebelum menandai DONE.
+- [x] Verifikasi AU-002 di main melalui PR #34.
+- [x] Jalankan lint, format, mypy, doctor offline, pytest dan coverage melalui satu runner.
+- [x] Uji keberadaan preset wajib dan jalur kegagalan diagnostik MT5 dengan mock.
+- [x] Catat hasil lokal dan keterbatasan di [laporan tes](../TEST_REPORT.md).
+- [x] Verifikasi acceptance dan tautkan PR, commit, serta run CI.
 
 ## Acceptance criteria
 
-- [ ] Workflow valid dan pytest fixture offline PASS; laporan dapat diakses.
-- [ ] Input invalid tidak menghasilkan sinyal/order/hasil sukses palsu.
-- [ ] Tes yang relevan PASS; tes yang tidak tersedia ditulis NOT RUN dengan alasan.
-- [ ] Dokumentasi menyebut perilaku aktual dan keterbatasan, tanpa klaim profit.
+- [x] Workflow valid dan pytest offline PASS di keempat job; laporan tersedia di [GitHub Actions](https://github.com/akbar875/TradingGold/actions/runs/45051372481).
+- [x] Input invalid tidak menghasilkan sinyal/order/hasil sukses palsu pada pengujian offline fondasi.
+- [x] Coverage dengan pengukuran branch minimal 90% per modul `config`, `cli`, `data_quality`, dan `mt5_client`.
+- [x] Dokumentasi mencatat hasil verifikasi lokal dan keterbatasan lingkungan.
 
 ## Skenario tes
 
 Offline import/config, input invalid, error exit, rerun idempotent; pytest dan lint.
 
-Offline: `python -m pytest -q`; lint: `python -m ruff check python tests scripts dashboard`.
+Jalankan `scripts/test_offline.ps1` di Windows atau `python scripts/test_offline.py`
+di Linux. Periksa `reports/pytest.xml` dan `reports/coverage.xml`.
 Kompilasi terminal jika relevan: `./scripts/compile_mql5.ps1 -MetaEditor <path>`.
 Kasus tambahan harus mengikuti scope dan AC spesifik di atas; tes umum saja tidak
 cukup untuk menutup issue.

@@ -7,6 +7,7 @@ permissions:
 jobs:
   offline:
     strategy:
+      fail-fast: false
       matrix:
         os: [ubuntu-latest, windows-latest]
         python: ['3.11', '3.12']
@@ -18,13 +19,11 @@ jobs:
           python-version: ${{ matrix.python }}
           cache: pip
       - run: python -m pip install -e ".[dev]"
-      - run: python -m ruff check python tests scripts dashboard
-      - run: python -m ruff format --check python tests scripts dashboard
-      - run: python -m mypy
-      - run: python -m aurum.cli doctor --offline
-      - run: python -m pytest -q --junitxml=reports/pytest.xml
+      - run: python scripts/test_offline.py
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: tests-${{ matrix.os }}-${{ matrix.python }}
-          path: reports/pytest.xml
+          path: |
+            reports/pytest.xml
+            reports/coverage.xml

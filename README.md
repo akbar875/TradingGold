@@ -20,6 +20,10 @@ py -m venv .venv
 .\scripts\test_offline.ps1
 ```
 
+`scripts/test_offline.ps1` menjalankan pemeriksaan yang sama dengan CI.
+Di Linux gunakan `python scripts/test_offline.py` setelah memasang extra dev.
+Laporan pytest dan coverage tersedia di `reports/`.
+
 `doctor --offline` memeriksa konfigurasi tanpa menghubungi broker, dengan status
 `OFFLINE / BROKER_NOT_CHECKED`. Untuk diagnostik koneksi opsional:
 
