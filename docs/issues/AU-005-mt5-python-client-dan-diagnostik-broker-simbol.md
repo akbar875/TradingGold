@@ -1,11 +1,11 @@
 # [AU-005] MT5 Python client dan diagnostik broker/simbol
 
-- Status: IN_PROGRESS
+- Status: DONE (implementasi dan verifikasi offline; integrasi MT5 NOT RUN)
 - Priority: P0
 - Epic / label: area:data, priority:P0, type:feature
 - Dependencies: AU-002
-- Publication: NOT PUBLISHED
-- PR/commit: lihat riwayat Git; belum ada PR khusus issue ini.
+- Publication: [GitHub #5](https://github.com/akbar875/TradingGold/issues/5)
+- PR/commit: [PR #37](https://github.com/akbar875/TradingGold/pull/37), implementasi `3b0d22c`.
 
 ## Latar belakang
 
@@ -20,18 +20,19 @@ implementasi, bukan klaim source sudah lengkap.
 
 ## Tasks
 
-- [ ] Verifikasi dependensi issue dan kontrak input/output.
-- [ ] Implementasikan scope di atas dengan reason code dan fail-closed path.
-- [ ] Tambahkan kasus positif, negatif, dan regression yang relevan.
-- [ ] Perbarui dokumentasi, konfigurasi, serta bukti di docs/TEST_REPORT.md.
-- [ ] Review acceptance dan tautkan PR/commit sebelum menandai DONE.
+- [x] Verifikasi dependensi AU-002 dan kontrak input/output.
+- [x] Implementasikan diagnostik dan history read-only dengan reason code.
+- [x] Tambahkan kasus positif, negatif, dan regresi.
+- [x] Dokumentasikan argumen dan output di panduan Windows MT5 serta bukti di TEST_REPORT.md.
+- [x] Review acceptance dan tautkan PR/commit.
 
 ## Acceptance criteria
 
-- [ ] Missing MT5/broker menghasilkan error jelas, data tidak dipalsukan.
-- [ ] Input invalid tidak menghasilkan sinyal/order/hasil sukses palsu.
-- [ ] Tes yang relevan PASS; tes yang tidak tersedia ditulis NOT RUN dengan alasan.
-- [ ] Dokumentasi menyebut perilaku aktual dan keterbatasan, tanpa klaim profit.
+- [x] Paket MT5 hilang dan kegagalan koneksi/simbol menghasilkan reason code.
+- [x] Input invalid menghasilkan WAIT dan status gagal, tanpa candle parsial.
+- [x] 145 tes offline PASS. Integrasi MT5/broker demo dan kompilasi EA NOT RUN.
+- [x] [Panduan Windows MT5](../INSTALL_WINDOWS_MT5.md#diagnostik-dan-history-python)
+  mendokumentasikan perilaku dan keterbatasan.
 
 ## Skenario tes
 
