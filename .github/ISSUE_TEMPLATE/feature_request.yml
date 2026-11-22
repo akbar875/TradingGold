@@ -1,0 +1,16 @@
+name: Fitur / pekerjaan backlog
+description: Usulan dengan scope dan acceptance criteria terukur.
+title: "[FEATURE] "
+body:
+  - type: textarea
+    id: scope
+    attributes:
+      label: Masalah, scope, dan dependensi AU
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance criteria dan skenario negatif
+    validations:
+      required: true

@@ -1,0 +1,10 @@
+; Reserved for later demo validation. Execution remains disabled in foundation.
+InpSignalOnly=true
+InpEnableAutoTrade=false
+InpDemoOnly=true
+InpRequireLeverage2000=true
+InpRequireAI=false
+InpRequireNewsFilter=true
+InpEmergencyKillSwitch=false
+InpRiskPercentPerTrade=0.25
+InpMaxLot=0.05

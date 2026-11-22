@@ -1,0 +1,27 @@
+schema_version: "1.0"
+symbol: XAUUSD
+timeframe: M15
+confirmation_timeframes: [H1, H4]
+signal_only: true
+auto_trade: false
+demo_only: true
+live_trading_confirmation: ""
+require_leverage_2000: true
+require_ai: false
+require_news_filter: true
+emergency_kill_switch: false
+risk_percent_per_trade: 0.25
+max_lot: 0.05
+max_daily_loss_percent: 2.0
+max_entries_per_day: 3
+max_open_positions_per_symbol: 1
+max_margin_use_percent: 15.0
+max_consecutive_losses: 3
+break_even_at_r: 1.0
+trailing_start_r: 1.5
+max_stop_distance_atr: 3.0
+min_planned_rr: 2.0
+partial_tp: false
+label_horizon_bars: 8
+random_seed: 42
+signal_ttl_seconds: 120

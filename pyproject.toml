@@ -1,0 +1,42 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "aurum-expert-ai"
+version = "0.3.0.dev0"
+description = "Fondasi riset dan monitoring XAUUSD MT5, tanpa eksekusi Python"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = ["PyYAML>=6,<7"]
+
+[project.optional-dependencies]
+dev = ["pytest>=8,<10", "ruff>=0.9,<1", "mypy>=1.14,<2", "types-PyYAML", "jsonschema>=4,<5"]
+mt5 = ["MetaTrader5>=5,<6; sys_platform == 'win32'"]
+ml = ["numpy>=1.26,<3", "pandas>=2.2,<3", "scikit-learn>=1.5,<2", "joblib>=1.4,<2"]
+dashboard = ["streamlit>=1.40,<2"]
+
+[project.scripts]
+aurum = "aurum.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["python"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["python"]
+addopts = "-ra --basetemp=reports/pytest-tmp"
+
+[tool.ruff]
+target-version = "py311"
+line-length = 100
+src = ["python"]
+include = ["python/**/*.py", "tests/**/*.py", "scripts/*.py", "dashboard/*.py"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+
+[tool.mypy]
+python_version = "3.11"
+files = ["python/aurum"]
+strict = true

@@ -1,0 +1,2 @@
+# Instalasi inti. Extras ML/MT5/dashboard dipilih secara eksplisit.
+-e .

@@ -1,0 +1,15 @@
+* text=auto
+*.py text eol=lf
+*.md text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+*.ps1 text eol=crlf
+*.mq5 text eol=crlf
+*.mqh text eol=crlf
+*.set text eol=crlf
+/aurum_ai.py -text
+/README_ID.md -text
+/xauusd-trading-demo.html -text
+/PRD_AURUM_EXPERT_AI_MT5_V3.md -text
+/PROMPT_CODEX_AURUM_EXPERT_AI_MT5_V3.md -text
+/BACKLOG_ISSUES_AURUM_MT5.md -text

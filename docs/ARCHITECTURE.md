@@ -1,0 +1,50 @@
+# Arsitektur fondasi
+
+Scope permintaan saat ini: inspeksi seluruh berkas awal dan scaffolding fase A.
+PRD v3 menjadi target produk; master prompt adalah referensi pengembangan, bukan
+status implementasi. README v2 dan HTML simulasi tidak menjadi spesifikasi runtime.
+
+Alur target: broker MT5 -> Python data -> data quality -> fitur -> training dan
+registry -> inference -> atomic bridge Common Files -> EA technical/risk gates.
+EA kelak menjadi satu-satunya pemilik order dan posisi; logs/journal -> dashboard
+read-only. Riset/backtest terpisah dari jalur broker.
+
+Alur yang tersedia: YAML -> Settings tervalidasi -> CLI/show-config/doctor.
+Doctor mengimpor MT5 secara lazy dan hanya membaca diagnostik. Offline mode tidak
+menginisialisasi MT5. EA menampilkan status WAIT; dashboard menampilkan empty states.
+
+## Kontrak dan peta pengembangan
+
+| Modul | Kontrak / tanggung jawab | Status / issue |
+|---|---|---|
+| config.py | Settings immutable, YAML unknown/type/range validation | Tersedia, signal-only dipaksakan |
+| contracts.py | Bar UTC, Action, Decision, FeatureBuilder, Predictor | Kontrak fondasi |
+| mt5_client.py | Diagnostik read-only dengan masking | Awal; AU-005 belum selesai |
+| data_quality.py | OHLC finite, timestamp terurut, closed-bar, gap report | Awal; AU-006 belum selesai |
+| features.py, labels.py | Fitur kausal dan label horizon | Direncanakan AU-017/018 |
+| walk_forward.py, train.py | Purge/embargo, RF deterministik, laporan OOS | Direncanakan AU-019 |
+| model_registry.py, predict.py | Metadata/schema/expiry/quality gate, inference | Direncanakan AU-020 |
+| bridge.py | Atomic CSV writer, canonical checksum dan context validation | Direncanakan AU-021 |
+| costs.py, backtest.py | Simulasi setelah biaya dan intrabar konservatif | Direncanakan AU-023 |
+| journal.py | Structured audit events dan redaksi data akun | Direncanakan AU-027 |
+| mt5/Experts dan Include | EA diagnostik tanpa order | Signal/risk/execution AU-007..016/022 |
+| dashboard/app.py | Empty states dan konfigurasi Python read-only | Awal; AU-026 belum selesai |
+
+Modul yang belum dikerjakan dicatat di tabel; tidak dibuat sebagai file kosong
+yang terlihat seolah implementasi tersedia. Antarmuka CLI yang belum tersedia
+selalu exit 2. CSV bridge ditentukan di SIGNAL_SCHEMA; JSON Schema dipakai untuk
+representasi logis. Parser MQL5 dan writer atomic belum tersedia.
+
+## Keputusan safety dan konfigurasi
+
+Tidak ada kredensial broker, dataset privat, artifact model atau log akun di Git.
+Default dipusatkan pada config/default.yaml untuk Python. MQL5 membaca input/preset
+sendiri; tes parity menjaga nilai default bersama. Perubahan YAML tidak otomatis
+mengubah input EA. Pada fase ini Settings menolak auto/demo/live execution karena
+engine pengaman lengkap belum tersedia. Ini pembatasan sementara yang lebih aman
+daripada mengizinkan opsi auto yang belum memiliki implementasi.
+
+Baseline dipertahankan di root agar provenance tetap jelas; modul v3 tidak
+mengimpor aurum_ai.py. Lisensi tidak diasumsikan. CI hanya menjalankan tes offline;
+tidak mengakses broker. Jalur order baru boleh ditambahkan setelah issue safety
+dan pengujian MT5 yang relevan lulus.

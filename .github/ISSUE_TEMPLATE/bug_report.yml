@@ -1,0 +1,15 @@
+name: Bug / pelanggaran pengaman
+description: Laporkan perilaku aktual dan bukti tanpa data akun sensitif.
+title: "[BUG] "
+body:
+  - type: textarea
+    id: actual
+    attributes:
+      label: Perilaku aktual dan langkah reproduksi
+      description: Sertakan versi, mode, simbol, expected vs actual, dan log yang sudah dimasking.
+    validations:
+      required: true
+  - type: textarea
+    id: safety
+    attributes:
+      label: Dampak pada pengaman dan tes

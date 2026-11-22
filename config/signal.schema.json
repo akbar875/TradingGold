@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Aurum ML confirmation v1 (contract; EA parser pending AU-021)",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "model_version", "account_login", "server", "symbol", "timeframe", "bar_open_time_utc", "generated_at_utc", "expiry_utc", "action", "p_buy", "p_sell", "p_wait", "quality_status", "checksum"],
+  "properties": {
+    "schema_version": {"const": "1.0"},
+    "model_version": {"type": "string", "minLength": 1},
+    "account_login": {"type": "string", "pattern": "^[0-9]+$"},
+    "server": {"type": "string", "minLength": 1},
+    "symbol": {"type": "string", "minLength": 1},
+    "timeframe": {"const": "M15"},
+    "bar_open_time_utc": {"type": "integer", "minimum": 0},
+    "generated_at_utc": {"type": "integer", "minimum": 0},
+    "expiry_utc": {"type": "integer", "minimum": 0},
+    "action": {"enum": ["BUY", "SELL", "WAIT"]},
+    "p_buy": {"type": "number", "minimum": 0, "maximum": 1},
+    "p_sell": {"type": "number", "minimum": 0, "maximum": 1},
+    "p_wait": {"type": "number", "minimum": 0, "maximum": 1},
+    "quality_status": {"enum": ["VALID", "DEGRADED", "ERROR"]},
+    "checksum": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+  }
+}
