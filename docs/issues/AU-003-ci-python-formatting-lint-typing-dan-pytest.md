@@ -1,10 +1,11 @@
 # [AU-003] CI Python, formatting, lint, typing dan pytest
 
-- Status: IN_PROGRESS
+- Status: DONE
 - Priority: P0
 - Epic / label: area:infra, priority:P0, type:feature
 - Dependencies: AU-002
 - Publication: [GitHub #3](https://github.com/akbar875/TradingGold/issues/3)
+- PR/commit: [PR #35](https://github.com/akbar875/TradingGold/pull/35), implementasi `2bdeab2`.
 
 ## Latar belakang
 
@@ -23,11 +24,11 @@ implementasi, bukan klaim source sudah lengkap.
 - [x] Jalankan lint, format, mypy, doctor offline, pytest dan coverage melalui satu runner.
 - [x] Uji keberadaan preset wajib dan jalur kegagalan diagnostik MT5 dengan mock.
 - [x] Catat hasil lokal dan keterbatasan di [laporan tes](../TEST_REPORT.md).
-- [ ] Review acceptance dan tautkan PR/commit sebelum menandai DONE.
+- [x] Verifikasi acceptance dan tautkan PR, commit, serta run CI.
 
 ## Acceptance criteria
 
-- [ ] Workflow valid dan pytest fixture offline PASS; laporan dapat diakses.
+- [x] Workflow valid dan pytest offline PASS di keempat job; laporan tersedia di [GitHub Actions](https://github.com/akbar875/TradingGold/actions/runs/45051372481).
 - [x] Input invalid tidak menghasilkan sinyal/order/hasil sukses palsu pada pengujian offline fondasi.
 - [x] Coverage dengan pengukuran branch minimal 90% per modul `config`, `cli`, `data_quality`, dan `mt5_client`.
 - [x] Dokumentasi mencatat hasil verifikasi lokal dan keterbatasan lingkungan.

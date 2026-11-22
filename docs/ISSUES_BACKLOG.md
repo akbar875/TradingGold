@@ -1,12 +1,12 @@
 # Backlog implementasi
 
-33 seed lokal. NOT PUBLISHED: GitHub CLI belum tersedia; publikasi remote belum dijalankan. Status fondasi tidak berarti produk siap trading.
+33 seed lokal. AU-003 juga terverifikasi di [GitHub #3](https://github.com/akbar875/TradingGold/issues/3). Status fondasi tidak berarti produk siap trading.
 
 | ID | Issue | Prioritas | Area | Dependencies | Status |
 |---|---|---|---|---|---|
 | AU-001 | [Audit baseline v2 dan identifikasi bug kritis](issues/AU-001-audit-baseline-v2-dan-identifikasi-bug-kritis.md) | P0 | infra | - | DONE |
 | AU-002 | [Scaffold repo, konfigurasi dan kontrak modul](issues/AU-002-scaffold-repo-konfigurasi-dan-kontrak-modul.md) | P0 | infra | AU-001 | DONE |
-| AU-003 | [CI Python, formatting, lint, typing dan pytest](issues/AU-003-ci-python-formatting-lint-typing-dan-pytest.md) | P0 | infra | AU-002 | IN_PROGRESS |
+| AU-003 | [CI Python, formatting, lint, typing dan pytest](issues/AU-003-ci-python-formatting-lint-typing-dan-pytest.md) | P0 | infra | AU-002 | DONE |
 | AU-004 | [Script compile EA MT5 di Windows dan pelaporan](issues/AU-004-script-compile-ea-mt5-di-windows-dan-pelaporan.md) | P0 | mql5 | AU-002 | IN_PROGRESS |
 | AU-005 | [MT5 Python client dan diagnostik broker/simbol](issues/AU-005-mt5-python-client-dan-diagnostik-broker-simbol.md) | P0 | data | AU-002 | IN_PROGRESS |
 | AU-006 | [Validasi data candle, spread, UTC dan closed-bar](issues/AU-006-validasi-data-candle-spread-utc-dan-closed-bar.md) | P0 | data | AU-005 | IN_PROGRESS |
@@ -40,5 +40,6 @@
 
 AU-001: audit selesai, kompilasi baseline tidak mungkin karena source tidak disertakan.
 AU-002: scaffold fase A dan kontrak konfigurasi lulus verifikasi offline.
-AU-003/004/005/006/026/031 masih IN_PROGRESS.
-Issue lainnya OPEN. Tidak ada issue ditutup di GitHub.
+AU-003: runner offline, coverage safety, dan keempat job CI lulus verifikasi.
+AU-004/005/006/026/031 masih IN_PROGRESS.
+Issue lokal lainnya OPEN.

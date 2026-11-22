@@ -10,7 +10,7 @@ untuk QA. Tidak ada login broker atau operasi order yang dijalankan.
 | Inspeksi 6 berkas awal dan preservasi hash | PASS | Seluruh SHA256 cocok. Tes regresi membandingkan keenam berkas dengan BASELINE_HASHES.json dan ikut dijalankan oleh pytest di CI. |
 | Sintaks Python (15 file), TOML dan JSON | PASS | ast.parse, compileall, tomllib, json.loads |
 | Sintaks PowerShell 4 script | PASS | System.Management.Automation.Language.Parser |
-| Struktur YAML workflow CI | PASS | safe_load dan pemeriksaan matrix OS serta permissions |
+| Struktur YAML workflow CI | PASS | Pemeriksaan trigger push/PR, matrix OS/Python dan permission read-only. |
 | Pytest fondasi | PASS | `scripts/test_offline.ps1`: 72 passed, tanpa skip. JUnit di `reports/pytest.xml`. |
 | Publisher dry-run | PASS | `python scripts/publish_issues.py --dry-run --provider auto`: 33 issue |
 | .gitignore runtime/privacy | PASS | git check-ignore .env, data/private.csv, logs/private.jsonl, models/private.joblib dan .venv |
@@ -22,7 +22,7 @@ untuk QA. Tidak ada login broker atau operasi order yang dijalankan.
 | Training ML v3 dan backtest broker | NOT RUN | Modul masih backlog; tidak ada hasil akurasi/P&L |
 | Streamlit runtime / visual QA | NOT RUN | Extra dashboard tidak dipasang; source syntax diperiksa |
 | Coverage safety | PASS | Ambang 90% per modul dengan pengukuran branch. Hasil lokal: config 99%, CLI 97%, data quality 100%, MT5 client 100%. |
-| GitHub Actions AU-003 | NOT RUN | Hasil matrix untuk perubahan AU-003 belum diverifikasi. |
+| GitHub Actions AU-003 | PASS | [Run PR #35](https://github.com/akbar875/TradingGold/actions/runs/45051372481) pada commit implementasi `2bdeab2`: empat job lulus (Ubuntu/Windows × Python 3.11/3.12), empat artefak tes tersedia. |
 | Issue remote AU-003 | OPEN | Scope terverifikasi terhadap [GitHub #3](https://github.com/akbar875/TradingGold/issues/3). |
 
 JUnit, coverage XML dan output compile disimpan di `reports/`, yang diabaikan
