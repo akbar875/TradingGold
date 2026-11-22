@@ -1,11 +1,11 @@
 # [AU-004] Script compile EA MT5 di Windows dan pelaporan
 
-- Status: IN_PROGRESS
+- Status: DONE (runner compile; MetaEditor nyata NOT RUN)
 - Priority: P0
 - Epic / label: area:mql5, priority:P0, type:feature
 - Dependencies: AU-002
-- Publication: NOT PUBLISHED
-- PR/commit: lihat riwayat Git; belum ada PR khusus issue ini.
+- Publication: [GitHub #4](https://github.com/akbar875/TradingGold/issues/4)
+- PR/commit: branch `codex/au-004-compile-reporting`; bukti di [TEST_REPORT](../TEST_REPORT.md).
 
 ## Latar belakang
 
@@ -20,22 +20,30 @@ implementasi, bukan klaim source sudah lengkap.
 
 ## Tasks
 
-- [ ] Verifikasi dependensi issue dan kontrak input/output.
-- [ ] Implementasikan scope di atas dengan reason code dan fail-closed path.
-- [ ] Tambahkan kasus positif, negatif, dan regression yang relevan.
-- [ ] Perbarui dokumentasi, konfigurasi, serta bukti di docs/TEST_REPORT.md.
-- [ ] Review acceptance dan tautkan PR/commit sebelum menandai DONE.
+- [x] AU-002 DONE; input path compiler dan timeout, output status/log/EX5 serta exit code terdokumentasi.
+- [x] Workspace unik, CLI resmi, reason code, timeout, validasi log dan artifact baru.
+- [x] 18 regresi runner Windows dan 6 regresi publisher completion.
+- [x] Panduan instalasi, README, changelog dan TEST_REPORT diperbarui.
+- [x] Acceptance ditinjau; referensi branch dan bukti tercantum di atas.
 
 ## Acceptance criteria
 
-- [ ] Compile PASS ketika lingkungan mendukung, jika tidak NOT RUN tercatat.
-- [ ] Input invalid tidak menghasilkan sinyal/order/hasil sukses palsu.
-- [ ] Tes yang relevan PASS; tes yang tidak tersedia ditulis NOT RUN dengan alasan.
-- [ ] Dokumentasi menyebut perilaku aktual dan keterbatasan, tanpa klaim profit.
+- [x] MetaEditor tidak tersedia: NOT RUN / COMPILER_UNAVAILABLE, exit 2.
+- [x] Input invalid, log error/ambigu, launch failure dan EX5 invalid ditolak tanpa PASS lama.
+- [x] Tes offline Windows 96 PASS; kompilasi MetaEditor nyata NOT RUN, bukan PASS mock.
+- [x] Dokumentasi menjelaskan lokasi build, exit code, timeout dan keterbatasan.
 
 ## Skenario tes
 
-Compile MetaEditor; closed-bar BUY/SELL/WAIT; data gagal, restart, ownership dan retcode.
+`tests/test_compile_mql5.py` menjalankan script PowerShell asli di salinan repo
+dengan path berspasi dan compiler/process fixture: sukses (dua format summary),
+compiler/source/include hilang, timeout invalid, launch failure, timeout proses
+nyata, exit nonzero, 10 errors, warning, summary tertanam/duplikat, diagnostic
+error, log hilang, EX5 hilang/kosong/lama. PASS lama dan EX5 source lama dipasang
+sebagai sentinel. Fixture tidak membuktikan kompilasi MQL5.
+
+Tes entry/ownership/retcode menjadi scope issue engine/eksekusi berikutnya;
+AU-004 hanya membangun dan melaporkan hasil compile, tanpa menjalankan EA/order.
 
 Offline: `python -m pytest -q`; lint: `python -m ruff check python tests scripts dashboard`.
 Kompilasi terminal jika relevan: `./scripts/compile_mql5.ps1 -MetaEditor <path>`.

@@ -42,6 +42,50 @@ def issue_files(directory: Path) -> list[tuple[str, str, Path]]:
     return issues
 
 
+def complete_issue(repo: str, issue_id: str, pull_request: int) -> None:
+    """Close only an owned seed issue after its explicitly linked PR is merged."""
+    login = run(["gh", "api", "user", "--jq", ".login"])
+    matches = json.loads(
+        run(
+            [
+                "gh",
+                "issue",
+                "list",
+                "--repo",
+                repo,
+                "--state",
+                "all",
+                "--limit",
+                "1000",
+                "--json",
+                "number,title,author,state",
+            ]
+        )
+    )
+    matches = [row for row in matches if row["title"].startswith(f"[{issue_id}] ")]
+    if len(matches) != 1:
+        raise ValueError("Issue harus ditemukan tepat satu kali")
+    issue = matches[0]
+    if issue["author"]["login"].casefold() != login.casefold():
+        raise ValueError("Tidak boleh menutup issue milik orang lain")
+    pr = json.loads(run(["gh", "api", f"repos/{repo}/pulls/{pull_request}"]))
+    if (
+        not pr["merged_at"]
+        or pr["base"]["ref"] != "main"
+        or pr["base"]["repo"]["full_name"].casefold() != repo.casefold()
+        or not re.search(
+            rf"(?im)^\s*(?:closes|fixes|resolves|issue:)\s+#{issue['number']}\s*$", pr["body"] or ""
+        )
+    ):
+        raise ValueError("PR harus merged ke main repo ini dan merujuk Issue: #issue")
+    if issue["state"] == "CLOSED":
+        print(f"SKIP {issue_id}: sudah CLOSED; merged PR #{pull_request} terverifikasi")
+        return
+    print(
+        run(["gh", "issue", "close", str(issue["number"]), "--repo", repo, "--reason", "completed"])
+    )
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     mode = parser.add_mutually_exclusive_group()
@@ -49,10 +93,33 @@ def main(argv: list[str] | None = None) -> int:
     mode.add_argument("--publish", action="store_true")
     parser.add_argument("--provider", choices=["auto", "github"], default="auto")
     parser.add_argument("--label", action="append", default=[])
+    parser.add_argument("--complete", metavar="AU-ID", help="Selesaikan seed issue milik sendiri")
+    parser.add_argument("--pull-request", type=int, help="PR merged yang menyelesaikan issue")
     args = parser.parse_args(argv)
     try:
         repo = github_repo(run(["git", "remote", "get-url", "origin"]))
         issues = issue_files(ROOT / "docs/issues")
+        if args.complete:
+            if (
+                args.complete not in {row[0] for row in issues}
+                or not args.pull_request
+                or args.pull_request < 1
+            ):
+                raise ValueError("--complete membutuhkan ID lokal dan --pull-request positif")
+            if not args.publish:
+                print(
+                    json.dumps(
+                        {
+                            "status": "DRY_RUN",
+                            "repo": repo,
+                            "complete": args.complete,
+                            "pull_request": args.pull_request,
+                        }
+                    )
+                )
+                return 0
+        elif args.pull_request:
+            raise ValueError("--pull-request membutuhkan --complete")
         if not args.publish:
             print(
                 json.dumps(
@@ -69,6 +136,9 @@ def main(argv: list[str] | None = None) -> int:
         if not shutil.which("gh"):
             raise RuntimeError("NOT PUBLISHED: GitHub CLI (gh) belum tersedia")
         run(["gh", "auth", "status"])
+        if args.complete:
+            complete_issue(repo, args.complete, args.pull_request)
+            return 0
         titles = run(
             [
                 "gh",

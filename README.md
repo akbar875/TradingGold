@@ -83,7 +83,16 @@ Jangan mengartikannya sebagai pipeline yang sudah berjalan.
 Publisher default dry-run, memakai `--body-file`, dan melewati marker AU yang
 sudah ada pada issue terbuka maupun tertutup. Hanya GitHub didukung pada scaffold
 ini. Label opsional `--label` harus sudah tersedia di repo; publikasi tidak
-menutup atau mengubah issue existing.
+menutup atau mengubah issue existing pada mode publikasi seed.
+Penyelesaian issue milik akun sendiri melalui publisher memerlukan
+`--complete AU-004 --pull-request <nomor> --publish`; tanpa `--publish` tetap
+dry-run. Publisher memverifikasi PR sudah merged ke `main` repo ini dan memiliki
+baris `Issue: #<issue>` (atau closing keyword GitHub). Issue milik orang lain ditolak.
+
+Runner compile memakai workspace unik di `reports/mql5/`, timeout default
+120 detik, dan exit 0/1/2 untuk PASS/FAIL/NOT RUN. Path log serta EX5 dicatat
+di `reports/mql5-status.txt`; lihat panduan instalasi sebelum menyalin hasilnya
+ke terminal. Tes compiler mock tidak menjadi bukti compile MetaEditor nyata.
 
 Lihat [laporan tes](docs/TEST_REPORT.md), [instalasi MT5](docs/INSTALL_WINDOWS_MT5.md),
 dan [aturan risiko](docs/RISK_MANAGEMENT.md). Leverage adalah pengaturan broker.
