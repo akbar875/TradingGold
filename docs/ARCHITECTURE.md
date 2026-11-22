@@ -17,7 +17,7 @@ menginisialisasi MT5. EA menampilkan status WAIT; dashboard menampilkan empty st
 
 | Modul | Kontrak / tanggung jawab | Status / issue |
 |---|---|---|
-| config.py | Settings immutable, YAML unknown/type/range validation | Tersedia, signal-only dipaksakan |
+| config.py | Settings immutable, validasi key YAML dan nilai | Tersedia, signal-only dipaksakan |
 | contracts.py | Bar UTC, Action, Decision, FeatureBuilder, Predictor | Kontrak fondasi |
 | mt5_client.py | Diagnostik read-only dengan masking | Awal; AU-005 belum selesai |
 | data_quality.py | OHLC finite, timestamp terurut, closed-bar, gap report | Awal; AU-006 belum selesai |
@@ -43,6 +43,13 @@ sendiri; tes parity menjaga nilai default bersama. Perubahan YAML tidak otomatis
 mengubah input EA. Pada fase ini Settings menolak auto/demo/live execution karena
 engine pengaman lengkap belum tersedia. Ini pembatasan sementara yang lebih aman
 daripada mengizinkan opsi auto yang belum memiliki implementasi.
+
+Loader Python menolak key YAML duplikat (termasuk benturan hasil merge), key
+non-string, key asing, dan nilai di luar kontrak. CLI menerapkan `--symbol`
+ke Settings dengan validasi yang sama sebelum menampilkan konfigurasi efektif
+atau mengakses diagnostik MT5. Nama simbol dengan suffix broker dipertahankan
+persis. Simbol kosong atau berisi whitespace, karakter kontrol, garis miring,
+atau koma ditolak.
 
 Baseline dipertahankan di root agar provenance tetap jelas; modul v3 tidak
 mengimpor aurum_ai.py. Lisensi tidak diasumsikan. CI hanya menjalankan tes offline;

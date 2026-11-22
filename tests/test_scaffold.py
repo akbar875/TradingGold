@@ -1,6 +1,7 @@
 import importlib.util
 import json
 import re
+from hashlib import sha256
 from pathlib import Path
 
 import jsonschema
@@ -10,6 +11,20 @@ ROOT = Path(__file__).resolve().parents[1]
 spec = importlib.util.spec_from_file_location("publisher", ROOT / "scripts/publish_issues.py")
 publisher = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(publisher)
+
+
+def test_baseline_files_match_original_sha256():
+    manifest = json.loads((ROOT / "docs/BASELINE_HASHES.json").read_text(encoding="utf-8"))
+    assert set(manifest) == {
+        "BACKLOG_ISSUES_AURUM_MT5.md",
+        "PRD_AURUM_EXPERT_AI_MT5_V3.md",
+        "PROMPT_CODEX_AURUM_EXPERT_AI_MT5_V3.md",
+        "README_ID.md",
+        "aurum_ai.py",
+        "xauusd-trading-demo.html",
+    }
+    for filename, expected in manifest.items():
+        assert sha256((ROOT / filename).read_bytes()).hexdigest() == expected, filename
 
 
 def test_all_seed_issues_have_unique_ids_and_acceptance():

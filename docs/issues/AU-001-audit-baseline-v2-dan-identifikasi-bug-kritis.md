@@ -5,7 +5,7 @@
 - Epic / label: area:infra, priority:P0, type:feature
 - Dependencies: -
 - Publication: NOT PUBLISHED
-- PR/commit: lihat riwayat Git; belum ada PR khusus issue ini.
+- Commit audit awal: `5263159` (`Scaffold Aurum MT5 v3 foundation`).
 
 ## Latar belakang
 
@@ -48,4 +48,9 @@ Source/contract nyata, AC terverifikasi, negative-case tests dan dokumentasi
 diperbarui, bukti tes disimpan, lalu status dan referensi PR/commit diperbarui.
 Status seed bukan bukti bahwa implementasi produk telah selesai.
 
-Bukti audit: docs/BASELINE_AUDIT.md dan docs/BASELINE_HASHES.json.
+Bukti audit tersedia di [audit baseline](../BASELINE_AUDIT.md) dan
+[manifest hash](../BASELINE_HASHES.json). Rangkaian pytest lokal dan CI
+memeriksa preservasi keenam berkas melalui
+`test_baseline_files_match_original_sha256`. Tes penolakan konfigurasi
+eksekusi dan pemeriksaan API order dirangkum di [laporan tes](../TEST_REPORT.md).
+Kompilasi EA v2 berstatus `NOT RUN` karena source aslinya tidak tersedia.
