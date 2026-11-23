@@ -160,6 +160,9 @@ Checklist verifikasi terminal untuk AU-007
 
 ## AU-008 — market regime H1/H4, 23 November 2026
 
+[PR #40](https://github.com/akbar875/TradingGold/pull/40), commit implementasi
+`fa2942f`. Hasil CI tercantum di [checks PR](https://github.com/akbar875/TradingGold/pull/40/checks).
+
 `scripts/test_offline.ps1` **PASS** pada Windows dan Python 3.12.14 dengan
 **178 tes**. Ruff, format, mypy, doctor offline, dan hash keenam baseline lulus.
 Fixture C++ menjalankan `Indicators.mqh` dan `Regime.mqh` dengan API terminal
