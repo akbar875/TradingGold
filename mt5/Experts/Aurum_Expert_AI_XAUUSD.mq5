@@ -1,9 +1,9 @@
 #property strict
 #property version "3.00"
-#property description "Diagnostik dan indikator closed-bar. Tidak memiliki jalur eksekusi order."
+#property description "Diagnostik indikator dan market regime closed-bar. Tidak memiliki jalur eksekusi order."
 
 #include <Aurum/Status.mqh>
-#include <Aurum/Indicators.mqh>
+#include <Aurum/Regime.mqh>
 
 input bool InpSignalOnly = true;
 input bool InpEnableAutoTrade = false;
@@ -24,8 +24,15 @@ input int InpMacdSlow = 26;
 input int InpMacdSignal = 9;
 input int InpAdxPeriod = 14;
 input int InpAtrPeriod = 14;
+input int InpEmaH4Fast = 50;
+input int InpEmaH4Slow = 200;
+input double InpRegimeMinTrendAdx = 25.0;
+input double InpRegimeAtrSpikeRatio = 2.0;
+input double InpRegimeMaxSpreadAtrRatio = 0.25;
+input double InpRegimeMaxRangeAtrRatio = 4.0;
 
 AurumIndicators Indicators;
+AurumRegimeSettings RegimeSettings;
 
 int OnInit()
   {
@@ -48,6 +55,17 @@ int OnInit()
    periods.macd_signal=InpMacdSignal;
    periods.adx=InpAdxPeriod;
    periods.atr=InpAtrPeriod;
+   periods.ema_h4_fast=InpEmaH4Fast;
+   periods.ema_h4_slow=InpEmaH4Slow;
+   RegimeSettings.min_trend_adx=InpRegimeMinTrendAdx;
+   RegimeSettings.atr_spike_ratio=InpRegimeAtrSpikeRatio;
+   RegimeSettings.max_spread_atr_ratio=InpRegimeMaxSpreadAtrRatio;
+   RegimeSettings.max_range_atr_ratio=InpRegimeMaxRangeAtrRatio;
+   if(!AurumValidRegimeSettings(RegimeSettings))
+     {
+      Print("REGIME_SETTINGS_INVALID: periksa ambang ADX, ATR, spread dan range.");
+      return INIT_PARAMETERS_INCORRECT;
+     }
    if(!AurumValidIndicatorPeriods(periods))
      {
       Print("INDICATOR_PERIOD_INVALID: gunakan periode positif dan fast < slow.");
@@ -74,21 +92,30 @@ void OnTick()
 
    AurumIndicatorSnapshot snapshot;
    const AurumIndicatorStatus status=Indicators.ReadLatest(snapshot);
+   AurumRegimeResult regime;
+   AurumClassifyRegime(status,snapshot,RegimeSettings,regime);
+   const string regime_line=StringFormat("\nRegime: %s | %s | %s",EnumToString(regime.regime),
+                                         EnumToString(regime.direction),EnumToString(regime.reason));
    if(status!=INDICATORS_READY)
      {
-      Comment(header,"WAIT | ",EnumToString(status));
+      Comment(header,"WAIT | ",EnumToString(status),regime_line);
       return;
      }
 
-   Comment(header,"WAIT | ENGINE_NOT_IMPLEMENTED | SIGNAL ONLY | ",EnumToString(status),
+   Comment(header,"WAIT | ENGINE_NOT_IMPLEMENTED | SIGNAL ONLY",regime_line,
            "\nBar open (waktu server) M15 ",TimeToString(snapshot.m15_open,TIME_DATE|TIME_MINUTES),
            " | H1 ",TimeToString(snapshot.h1_open,TIME_DATE|TIME_MINUTES),
+           " | H4 ",TimeToString(snapshot.h4_open,TIME_DATE|TIME_MINUTES),
            "\nEMA M15 fast / slow: ",DoubleToString(snapshot.ema_m15_fast,8)," / ",DoubleToString(snapshot.ema_m15_slow,8),
            "\nEMA H1 fast / slow: ",DoubleToString(snapshot.ema_h1_fast,8)," / ",DoubleToString(snapshot.ema_h1_slow,8),
+           "\nEMA H4 fast / slow: ",DoubleToString(snapshot.ema_h4_fast,8)," / ",DoubleToString(snapshot.ema_h4_slow,8),
            "\nRSI: ",DoubleToString(snapshot.rsi,8),
            " | MACD main / signal: ",DoubleToString(snapshot.macd_main,8)," / ",DoubleToString(snapshot.macd_signal,8),
            "\nADX / +DI / -DI: ",DoubleToString(snapshot.adx,8)," / ",DoubleToString(snapshot.plus_di,8),
-           " / ",DoubleToString(snapshot.minus_di,8)," | ATR: ",DoubleToString(snapshot.atr,8));
+           " / ",DoubleToString(snapshot.minus_di,8)," | ATR: ",DoubleToString(snapshot.atr,8),
+           "\nATR baseline: ",DoubleToString(snapshot.prior_atr_mean,8),
+           " | Spread: ",DoubleToString(snapshot.spread_price,8),
+           " | Range: ",DoubleToString(snapshot.range_price,8));
   }
 
 void OnDeinit(const int reason)

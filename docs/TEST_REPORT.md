@@ -158,6 +158,26 @@ Checklist verifikasi terminal untuk AU-007
 3. Uji history belum siap, periode invalid, lepas dan pasang ulang EA.
    Periksa panel atau Journal untuk reason code serta status WAIT.
 
+## AU-008 — market regime H1/H4, 23 November 2026
+
+`scripts/test_offline.ps1` **PASS** pada Windows dan Python 3.12.14 dengan
+**178 tes**. Ruff, format, mypy, doctor offline, dan hash keenam baseline lulus.
+Fixture C++ menjalankan `Indicators.mqh` dan `Regime.mqh` dengan API terminal
+stub. Fixture dan tes parity memverifikasi periode H4 dan ambang preset,
+cutoff H1/H4, pemilihan candle saat pergantian H4, pelepasan handle,
+klasifikasi bullish/bearish/range/unsafe, konflik, serta batas ADX, ATR,
+spread, dan konsolidasi. Kasus negatif mencakup H4 basi/tidak siap, rollover
+selama pembacaan, hasil parsial, gap M15, OHLC rusak, spread nol, broker point
+invalid dan ATR baseline invalid. Uji transisi memeriksa pemblokiran arah
+saat data gagal, retry setelah history pulih dan perhitungan ulang setelah
+handle dibuat kembali.
+
+Compile MetaEditor **NOT RUN** (`COMPILER_UNAVAILABLE`, runner exit 2,
+`reports/mql5-status.txt`). Strategy Tester, perbandingan nilai indikator
+native, attach/detach, dan terminal demo **NOT RUN** karena MetaEditor serta
+terminal untuk pengujian tidak tersedia. EA tetap WAIT dan preset memakai
+SignalOnly=true, AutoTrade=false, DemoOnly=true.
+
 ## Verifikasi manual yang masih dibutuhkan
 
 - Compile source dan include pada MetaEditor, periksa log/artifact baru.
