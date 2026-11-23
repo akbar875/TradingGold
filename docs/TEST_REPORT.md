@@ -181,6 +181,28 @@ native, attach/detach, dan terminal demo **NOT RUN** karena MetaEditor serta
 terminal untuk pengujian tidak tersedia. EA tetap WAIT dan preset memakai
 SignalOnly=true, AutoTrade=false, DemoOnly=true.
 
+## AU-009 — setup entry M15, 24 November 2026
+
+[PR #41](https://github.com/akbar875/TradingGold/pull/41), implementasi
+`4394862`. `scripts/test_offline.ps1` **PASS** pada Windows dan Python
+3.12.14 dengan **178 tes**. Ruff, format, mypy, doctor offline, serta
+verifikasi hash keenam baseline lulus. Hasil CI ada di [checks PR](https://github.com/akbar875/TradingGold/pull/41/checks).
+
+Fixture C++ menjalankan include MQL5 produksi dengan API terminal stub.
+Kasus mencakup BUY dan SELL untuk setiap setup, WAIT pada sentuhan intrabar,
+body breakout lemah, false breakout, batas retest, batas chase limit,
+invalidation, batas stop struktur, dan dua pola pada satu candle. Uji data
+mencakup future bar di luar window, gap, OHLC invalid, quote basi/terbalik,
+hasil parsial, rollover, dan retry. Stub file menguji klaim lintas instance,
+restart, bar lama, kegagalan lock/tulis/flush dan ukuran file rusak. Tes
+parity memeriksa kedua preset dan suite memeriksa ketiadaan jalur order.
+
+Compile MetaEditor **NOT RUN** (`COMPILER_UNAVAILABLE`,
+`reports/mql5-status.txt`). Strategy Tester dan attach/restart pada terminal
+demo **NOT RUN** karena terminal pengujian tidak tersedia. Verifikasi native
+masih perlu memeriksa panel WAIT, quote Bid/Ask, dan satu catatan Journal saat
+dua chart simbol yang sama berjalan serta setelah EA dipasang ulang.
+
 ## Verifikasi manual yang masih dibutuhkan
 
 - Compile source dan include pada MetaEditor, periksa log/artifact baru.
