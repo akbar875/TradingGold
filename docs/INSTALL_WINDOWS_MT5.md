@@ -9,7 +9,9 @@ integrasi tersedia; scaffold ini tidak mengeksekusi atau mengelola posisi.
    mt5/Include/Aurum ke MQL5/Include/Aurum.
 3. Buka source di MetaEditor dan F7; periksa Errors dan log.
 4. Setelah compile terverifikasi, pasang pada chart simbol broker M15 dan muat
-   mt5/Presets/Signal_Only.set. Panel saat ini WAIT/ENGINE_NOT_IMPLEMENTED.
+   mt5/Presets/Signal_Only.set. Panel menampilkan WAIT dan status indikator.
+   Setelah history siap, nilai M15/H1 ditampilkan bersama timestamp bar sumber.
+   Lihat [aturan indikator](STRATEGY_RULES.md#indikator-au-007).
 
 Atau jalankan dari root repo:
 

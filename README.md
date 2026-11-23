@@ -3,10 +3,10 @@
 Fondasi pengembangan Aurum v3 untuk XAUUSD pada MetaTrader 5 Windows.
 **Status: scaffolding fase A, belum siap trading atau rilis produk.**
 
-Default `SIGNAL_ONLY=true`, `AutoTrade=false`, `DemoOnly=true`. EA saat ini
-hanya menampilkan `WAIT / ENGINE_NOT_IMPLEMENTED`. Tidak ada jalur order pada
-Python, dashboard, maupun EA fondasi ini. Engine teknikal, eksekusi demo,
-ML v3, bridge runtime dan backtest masih pekerjaan lanjutan.
+Default `SIGNAL_ONLY=true`, `AutoTrade=false`, `DemoOnly=true`. EA
+menampilkan snapshot indikator M15/H1 saat siap. Aksi tetap `WAIT` karena
+engine sinyal belum tersedia. Python, dashboard, dan EA fondasi ini
+tidak memiliki jalur order. Lihat [aturan indikator](docs/STRATEGY_RULES.md).
 
 ## Mulai di Windows
 
@@ -61,7 +61,7 @@ koneksi tetap belum diperiksa; tidak ada harga atau performa buatan.
 
 ```text
 python/aurum/       konfigurasi, kontrak tipe, validator closed-bar, doctor dan history MT5
-mt5/               EA diagnostik, Include/Aurum, preset non-eksekusi
+mt5/               EA diagnostik, indikator closed-bar, preset non-eksekusi
 dashboard/         Streamlit read-only
 config/            default aman dan kontrak JSON Schema bridge
 tests/             tes offline fondasi dan kasus negatif
