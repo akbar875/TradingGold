@@ -5,9 +5,10 @@ Fondasi pengembangan Aurum v3 untuk XAUUSD pada MetaTrader 5 Windows.
 
 Default `SIGNAL_ONLY=true`, `AutoTrade=false`, `DemoOnly=true`. EA
 menampilkan snapshot indikator M15/H1/H4, market regime, dan hasil diagnostik
-setup M15. Aksi entry tetap `WAIT`, termasuk saat setup menghasilkan kandidat
-teknikal BUY/SELL. Python, dashboard, dan EA fondasi ini tidak memiliki jalur
-order. Lihat [aturan strategi](docs/STRATEGY_RULES.md).
+setup M15. Kandidat teknikal BUY/SELL memiliki ID dan skor heuristik beserta
+rincian komponennya. Aksi entry selalu `WAIT` dengan alasan yang diurutkan.
+Python, dashboard, dan EA fondasi ini tidak memiliki jalur order.
+Lihat [aturan strategi](docs/STRATEGY_RULES.md).
 
 ## Mulai di Windows
 
@@ -62,7 +63,7 @@ koneksi tetap belum diperiksa; tidak ada harga atau performa buatan.
 
 ```text
 python/aurum/       konfigurasi, kontrak tipe, validator closed-bar, doctor dan history MT5
-mt5/               EA diagnostik, indikator, regime dan setup closed-bar, preset non-eksekusi
+mt5/               EA diagnostik closed-bar, skor teknikal, preset non-eksekusi
 dashboard/         Streamlit read-only
 config/            default aman dan kontrak JSON Schema bridge
 tests/             tes offline fondasi dan kasus negatif
