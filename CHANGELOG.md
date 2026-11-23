@@ -10,6 +10,8 @@
   ke main; default dry-run tetap dipertahankan.
 - AU-006: validasi OHLCV, gap sesi UTC, overlap, dan outlier, konversi spread
   memakai broker point, serta snapshot kausal M15/H1/H4.
+- AU-008: konfirmasi H4 closed-bar, klasifikasi market regime, filter arah dan
+  pemblokiran pada data invalid di EA. Aksi tetap WAIT pada fase fondasi.
 
 ## 0.3.0.dev0 — 22 November 2026
 

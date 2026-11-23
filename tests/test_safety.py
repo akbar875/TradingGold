@@ -62,3 +62,14 @@ def test_shared_python_mql_defaults_match():
         assert re.search(rf"input \w+ {name} = {re.escape(literal)};", source)
         for path in (ROOT / "mt5/Presets").glob("*.set"):
             assert f"{name}={literal}" in path.read_text()
+
+
+def test_regime_settings_match_ea_defaults_in_both_presets():
+    source = (ROOT / "mt5/Experts/Aurum_Expert_AI_XAUUSD.mq5").read_text()
+    settings = dict(
+        re.findall(r"^input (?:int|double) (Inp(?:EmaH[14]|Regime)\w+) = ([\d.]+);$", source, re.M)
+    )
+    assert len(settings) == 8
+    for path in PRESETS.glob("*.set"):
+        for name, literal in settings.items():
+            assert f"{name}={literal}" in path.read_text().splitlines(), path

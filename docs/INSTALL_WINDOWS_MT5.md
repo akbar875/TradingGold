@@ -10,8 +10,8 @@ integrasi tersedia; scaffold ini tidak mengeksekusi atau mengelola posisi.
 3. Buka source di MetaEditor dan F7; periksa Errors dan log.
 4. Setelah compile terverifikasi, pasang pada chart simbol broker M15 dan muat
    mt5/Presets/Signal_Only.set. Panel menampilkan WAIT dan status indikator.
-   Setelah history siap, nilai M15/H1 ditampilkan bersama timestamp bar sumber.
-   Lihat [aturan indikator](STRATEGY_RULES.md#indikator-au-007).
+   Setelah history siap, nilai M15/H1/H4 dan hasil market regime ditampilkan
+   bersama timestamp bar sumber. Lihat [aturan regime](STRATEGY_RULES.md#market-regime-au-008).
 
 Atau jalankan dari root repo:
 
