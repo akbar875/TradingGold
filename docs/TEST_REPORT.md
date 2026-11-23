@@ -205,11 +205,14 @@ dua chart simbol yang sama berjalan serta setelah EA dipasang ulang.
 
 ## AU-010 — skor heuristik dan reason codes, 24 November 2026
 
+[PR #42](https://github.com/akbar875/TradingGold/pull/42), implementasi
+`17d2e58`. Hasil CI ada di [checks PR](https://github.com/akbar875/TradingGold/pull/42/checks).
+
 `scripts/test_offline.ps1` **PASS** pada Windows dan Python 3.12.14 dengan
 **178 tes**. Ruff, format, mypy, doctor offline, dan hash keenam baseline lulus.
 Fixture C++ menjalankan `Signals.mqh` bersama evaluator setup, regime dan file
 klaim dengan API terminal stub. Kasus uji mencakup BUY dan SELL untuk kedua
-setup, rincian score 75 dan 100, ID yang stabil selama evaluasi tick, dan
+setup, rincian skor 75 dan 100, ID yang stabil selama evaluasi tick, dan
 isolasi dimensi akun, server, simbol, timeframe, bar, setup, dan arah.
 
 Kasus negatif mencakup skor 100 saat news/AI tetap memblokir entry, prioritas

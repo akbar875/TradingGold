@@ -1,11 +1,11 @@
 # [AU-010] Explainable signal scoring dan reason codes
 
-- Status: OPEN
+- Status: DONE (fondasi terverifikasi offline, MetaEditor dan terminal NOT RUN)
 - Priority: P0
 - Epic / label: area:mql5, priority:P0, type:feature
 - Dependencies: AU-009
 - Publication: [GitHub #10](https://github.com/akbar875/TradingGold/issues/10)
-- PR/commit: lihat riwayat Git.
+- PR/commit: [PR #42](https://github.com/akbar875/TradingGold/pull/42), implementasi `17d2e58`.
 
 ## Latar belakang
 
@@ -25,7 +25,7 @@ akun, server, simbol, dan candle M15. Kedua preset tetap signal-only.
 - [x] Implementasikan scope di atas dengan reason code dan fail-closed path.
 - [x] Tambahkan kasus positif, negatif, dan regresi yang relevan.
 - [x] Dokumentasikan skor, aturan preset, serta bukti verifikasi.
-- [ ] Review acceptance dan tautkan PR/commit sebelum menandai DONE.
+- [x] Tinjau acceptance dan tautkan PR serta commit implementasi.
 
 ## Acceptance criteria
 
