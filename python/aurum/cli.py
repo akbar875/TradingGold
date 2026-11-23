@@ -8,7 +8,8 @@ from pathlib import Path
 
 from aurum import __version__
 from aurum.config import load_config
-from aurum.mt5_client import TIMEFRAME_SECONDS, diagnose, fetch_history
+from aurum.data_quality import TIMEFRAME_SECONDS
+from aurum.mt5_client import diagnose, fetch_history
 
 PENDING = {
     "train": "AU-017/AU-018/AU-019",
@@ -71,10 +72,15 @@ def main(argv: list[str] | None = None) -> int:
         try:
             if args.command == "fetch-data":
                 status.update(
-                    fetch_history(settings.symbol, args.timeframe or settings.timeframe, args.bars)
+                    fetch_history(
+                        settings.symbol,
+                        args.timeframe or settings.timeframe,
+                        args.bars,
+                        policy=settings.history_policy(),
+                    )
                 )
             else:
-                status.update(diagnose(settings.symbol))
+                status.update(diagnose(settings.symbol, policy=settings.history_policy()))
         except Exception:
             status.update({"status": "NOT_READY", "reason_code": "MT5_DIAGNOSTICS_FAILED"})
     print(json.dumps(status, indent=2, ensure_ascii=False, allow_nan=False))

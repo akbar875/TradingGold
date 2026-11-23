@@ -29,6 +29,9 @@ def test_safe_defaults():
         {"risk_percent_per_trade": 101},
         {"symbol": "../XAUUSD"},
         {"min_planned_rr": 1.5},
+        {"history_max_bar_move_percent": 101},
+        {"history_session_closures_utc": ((0, 10), (5, 20))},
+        {"history_session_closures_utc": ((True, 100),)},
     ],
 )
 def test_invalid_or_execution_config_rejected(change):
@@ -38,7 +41,15 @@ def test_invalid_or_execution_config_rejected(change):
 
 @pytest.mark.parametrize(
     "text",
-    ["[]", "auto_trdae: true", "signal_only: 'false'", "confirmation_timeframes: H1", "symbol: ["],
+    [
+        "[]",
+        "auto_trdae: true",
+        "signal_only: 'false'",
+        "confirmation_timeframes: H1",
+        "symbol: [",
+        "history_session_closures_utc: [2026-11-23]",
+        "history_session_closures_utc: [[1, 2, 3]]",
+    ],
 )
 def test_bad_yaml_fails_closed(tmp_path, text):
     path = tmp_path / "bad.yaml"

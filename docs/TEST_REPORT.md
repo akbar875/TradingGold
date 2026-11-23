@@ -102,7 +102,27 @@ MT5_PACKAGE_MISSING` dan exit 1.
 Integrasi MT5/broker demo **NOT RUN** karena paket MT5 tidak terpasang dan
 terminal demo tidak tersedia untuk verifikasi. Kompilasi EA **NOT RUN** karena
 MetaEditor tidak tersedia. Mode safe tetap diuji offline. Klasifikasi gap sesi
-dan freshness registry model dilacak di AU-006 dan AU-020.
+sebelumnya dilacak di AU-006. Freshness registry model dilacak di AU-020.
+
+## AU-006 — kualitas candle dan snapshot UTC, 23 November 2026
+
+`scripts/test_offline.ps1` **PASS**, 176 tes pada Windows dan Python 3.12.14.
+Ruff, pemeriksaan format, mypy, doctor offline, dan regresi hash keenam
+baseline lulus. Coverage branch modul config 99%, CLI 97%, data quality 99%,
+dan adapter MT5 98%.
+
+Regresi memeriksa overlap walaupun timestamp meningkat, gap tanpa jadwal
+yang gagal di CLI, penutupan sesi UTC yang mencakup seluruh gap, spread
+harga berdasarkan broker point, spread nol pada snapshot M15, OHLCV yang
+rusak, outlier, dan batas stale satu interval. Fixture MT5 memverifikasi
+posisi 1 dan penolakan candle terbuka. Regresi snapshot mengubah nilai
+candle masa depan dan memverifikasi hasil lama tetap sama. Dokter diuji
+dengan H4 yang baru tutup setelah batas keputusan M15.
+
+Integrasi terminal MT5/broker demo **NOT RUN** karena paket dan terminal demo
+untuk pengujian tidak tersedia. Kompilasi MetaEditor **NOT RUN** karena
+compiler tidak tersedia. Pengujian sinyal final **NOT RUN** karena engine
+sinyal masih scaffold. Tes snapshot memverifikasi kontrak input ke engine.
 
 ## Verifikasi manual yang masih dibutuhkan
 

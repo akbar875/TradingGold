@@ -10,8 +10,9 @@ EA kelak menjadi satu-satunya pemilik order dan posisi; logs/journal -> dashboar
 read-only. Riset/backtest terpisah dari jalur broker.
 
 Alur yang tersedia: YAML -> Settings tervalidasi -> CLI/show-config/doctor/fetch-data.
-Adapter mengimpor MT5 secara lazy. Doctor membaca diagnostik, dan fetch-data
-meneruskan candle MT5 tertutup ke validator sebelum mencetak JSON. Offline mode
+Adapter mengimpor MT5 secara lazy. Doctor memeriksa snapshot M15/H1/H4 pada
+waktu tutup M15. Fetch-data memvalidasi candle MT5 tertutup sebelum mencetak
+JSON dan mengonversi spread points memakai point simbol. Offline mode
 tidak menginisialisasi MT5. EA menampilkan WAIT dan dashboard menampilkan empty states.
 
 ## Kontrak dan peta pengembangan
@@ -21,7 +22,7 @@ tidak menginisialisasi MT5. EA menampilkan WAIT dan dashboard menampilkan empty 
 | config.py | Settings immutable, validasi key YAML dan nilai | Tersedia, signal-only dipaksakan |
 | contracts.py | Bar UTC, Action, Decision, FeatureBuilder, Predictor | Kontrak fondasi |
 | mt5_client.py | Diagnostik broker/akun/simbol dengan masking dan pembacaan closed bars M15/H1/H4 | AU-005, terverifikasi offline |
-| data_quality.py | OHLC finite, timestamp terurut, closed-bar, gap report | Awal; AU-006 belum selesai |
+| data_quality.py | Validasi OHLCV/spread, overlap, outlier, gap sesi UTC, snapshot closed-bar kausal | AU-006, fondasi |
 | features.py, labels.py | Fitur kausal dan label horizon | Direncanakan AU-017/018 |
 | walk_forward.py, train.py | Purge/embargo, RF deterministik, laporan OOS | Direncanakan AU-019 |
 | model_registry.py, predict.py | Metadata/schema/expiry/quality gate, inference | Direncanakan AU-020 |

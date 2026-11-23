@@ -38,11 +38,14 @@ M15/H1/H4, serta keberadaan folder Common Files. Lihat
 [kontrak diagnostik dan data](docs/INSTALL_WINDOWS_MT5.md#diagnostik-dan-history-python).
 
 ```powershell
-.\.venv\Scripts\python.exe -m aurum.cli fetch-data --symbol XAUUSDm --timeframe M15 --bars 10000
+.\.venv\Scripts\python.exe -m aurum.cli fetch-data --symbol XAUUSDm --timeframe M15 --bars 2
 ```
 
-`fetch-data` membaca candle tertutup dari terminal dan mencetak JSON ke stdout.
-Jangan commit keluaran yang berisi data broker atau informasi akun.
+`fetch-data` memvalidasi candle tertutup dan mencetak JSON ke stdout. Untuk
+history yang melewati jeda pasar, masukkan jadwal penutupan UTC broker melalui
+`--config`. Gap yang belum dijelaskan menghasilkan exit 1 tanpa candle.
+Jangan commit keluaran yang berisi data broker atau informasi akun. Lihat
+[kontrak kualitas data](docs/INSTALL_WINDOWS_MT5.md#kualitas-candle-dan-snapshot-utc).
 
 ## Dashboard awal
 
