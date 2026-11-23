@@ -1,9 +1,10 @@
 #property strict
 #property version "3.00"
-#property description "Diagnostik indikator dan market regime closed-bar. Tidak memiliki jalur eksekusi order."
+#property description "Diagnostik indikator, market regime dan setup closed-bar. Tidak memiliki jalur eksekusi order."
 
 #include <Aurum/Status.mqh>
-#include <Aurum/Regime.mqh>
+#include <Aurum/Setups.mqh>
+#include <Aurum/SetupClaims.mqh>
 
 input bool InpSignalOnly = true;
 input bool InpEnableAutoTrade = false;
@@ -30,9 +31,18 @@ input double InpRegimeMinTrendAdx = 25.0;
 input double InpRegimeAtrSpikeRatio = 2.0;
 input double InpRegimeMaxSpreadAtrRatio = 0.25;
 input double InpRegimeMaxRangeAtrRatio = 4.0;
+input int InpSetupKeyLookback = 12;
+input int InpSetupMaxRetestBars = 3;
+input double InpSetupZoneAtr = 0.30;
+input double InpSetupMinBreakoutBodyRatio = 0.60;
+input double InpSetupMaxChaseAtr = 1.50;
+input double InpSetupMaxStopAtr = 3.00;
 
 AurumIndicators Indicators;
 AurumRegimeSettings RegimeSettings;
+AurumSetupSettings SetupSettings;
+string SetupClaimPath;
+datetime LastSetupClaim;
 
 int OnInit()
   {
@@ -66,6 +76,17 @@ int OnInit()
       Print("REGIME_SETTINGS_INVALID: periksa ambang ADX, ATR, spread dan range.");
       return INIT_PARAMETERS_INCORRECT;
      }
+   SetupSettings.key_lookback=InpSetupKeyLookback;
+   SetupSettings.max_retest_bars=InpSetupMaxRetestBars;
+   SetupSettings.zone_atr=InpSetupZoneAtr;
+   SetupSettings.min_breakout_body_ratio=InpSetupMinBreakoutBodyRatio;
+   SetupSettings.max_chase_atr=InpSetupMaxChaseAtr;
+   SetupSettings.max_stop_atr=InpSetupMaxStopAtr;
+   if(!AurumValidSetupSettings(SetupSettings))
+     {
+      Print("SETUP_SETTINGS_INVALID");
+      return INIT_PARAMETERS_INCORRECT;
+     }
    if(!AurumValidIndicatorPeriods(periods))
      {
       Print("INDICATOR_PERIOD_INVALID: gunakan periode positif dan fast < slow.");
@@ -76,8 +97,45 @@ int OnInit()
       Print("INDICATOR_HANDLE_FAILED: inisialisasi indikator gagal untuk ",_Symbol);
       return INIT_FAILED;
      }
+   SetupClaimPath=AurumSetupClaimPath(_Symbol);
+   LastSetupClaim=0;
    Comment("Aurum v3 foundation\n",AurumFoundationStatus());
    return INIT_SUCCEEDED;
+  }
+
+string SetupDiagnostic(const AurumIndicatorSnapshot &snapshot,const AurumRegimeResult &regime)
+  {
+   if(regime.direction==REGIME_DIRECTION_BLOCKED)
+      return "SETUP_REGIME_BLOCKED";
+   AurumSetupHistory history;
+   const int count=SetupSettings.key_lookback+SetupSettings.max_retest_bars+2;
+   const AurumIndicatorStatus status=Indicators.ReadSetupHistory(snapshot,count,history);
+   if(status!=INDICATORS_READY)
+      return EnumToString(status);
+
+   MqlTick quote;
+   long chart_mode;
+   if(!SymbolInfoInteger(_Symbol,SYMBOL_CHART_MODE,chart_mode) || chart_mode!=SYMBOL_CHART_MODE_BID ||
+      !SymbolInfoTick(_Symbol,quote))
+      return "SETUP_QUOTE_INVALID";
+
+   AurumSetupResult result;
+   AurumEvaluateSetup(snapshot,regime,history,SetupSettings,quote,result);
+   if(result.action==SETUP_WAIT)
+      return EnumToString(result.reason);
+
+   const AurumSetupClaim claim=AurumClaimSetupBar(SetupClaimPath,result.bar_time,
+                                                 (bool)MQLInfoInteger(MQL_TESTER),LastSetupClaim);
+   if(claim==SETUP_STATE_UNAVAILABLE)
+      return EnumToString(claim);
+
+   const string candidate=StringFormat("%s | %s | Level %s | Invalidation %s",
+                                       EnumToString(result.action),EnumToString(result.kind),
+                                       DoubleToString(result.key_level,_Digits),
+                                       DoubleToString(result.invalidation,_Digits));
+   if(claim==SETUP_CLAIMED)
+      Print("SETUP_CONFIRMED | ",_Symbol," | ",TimeToString(result.bar_time,TIME_DATE|TIME_MINUTES)," | ",candidate);
+   return candidate+(claim==DUPLICATE_SIGNAL ? " | DUPLICATE_SIGNAL" : "");
   }
 
 void OnTick()
@@ -102,7 +160,10 @@ void OnTick()
       return;
      }
 
-   Comment(header,"WAIT | ENGINE_NOT_IMPLEMENTED | SIGNAL ONLY",regime_line,
+   const string setup_line=SetupDiagnostic(snapshot,regime);
+   const string entry_reason=InpRequireNewsFilter ? "NEWS_UNKNOWN" :
+                             (InpRequireAI ? "AI_UNAVAILABLE" : "ENGINE_NOT_IMPLEMENTED");
+   Comment(header,"WAIT | ",entry_reason," | SIGNAL ONLY",regime_line,"\nSetup diagnostic: ",setup_line,
            "\nBar open (waktu server) M15 ",TimeToString(snapshot.m15_open,TIME_DATE|TIME_MINUTES),
            " | H1 ",TimeToString(snapshot.h1_open,TIME_DATE|TIME_MINUTES),
            " | H4 ",TimeToString(snapshot.h4_open,TIME_DATE|TIME_MINUTES),

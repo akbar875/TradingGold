@@ -4,8 +4,7 @@
 - Priority: P0
 - Epic / label: area:mql5, priority:P0, type:feature
 - Dependencies: AU-008
-- Publication: NOT PUBLISHED
-- PR/commit: lihat riwayat Git; belum ada PR khusus issue ini.
+- Publication: [GitHub #9](https://github.com/akbar875/TradingGold/issues/9)
 
 ## Latar belakang
 
@@ -13,17 +12,18 @@ Entry hanya ketika trigger lengkap.
 
 ## Scope dan deliverable
 
-Pisah fungsi setup, candle closed confirmation, swing, key level, invalidation, chase limit.
-
-File/modul terkait: mt5/Experts/, mt5/Include/Aurum/, mt5/Presets/. Nama modul yang belum tersedia adalah target
-implementasi, bukan klaim source sudah lengkap.
+`Setups.mqh` mengevaluasi TREND_PULLBACK dan BREAKOUT_RETEST menggunakan
+snapshot AU-008, candle M15 tertutup, swing high/low, key level, invalidation,
+dan chase limit. `SetupClaims.mqh` membatasi event Journal per simbol dan
+candle M15. EA menampilkan kandidat diagnostik BUY/SELL atau alasan WAIT.
+Aksi entry EA tetap WAIT dan kedua preset tetap signal-only.
 
 ## Tasks
 
-- [ ] Verifikasi dependensi issue dan kontrak input/output.
-- [ ] Implementasikan scope di atas dengan reason code dan fail-closed path.
-- [ ] Tambahkan kasus positif, negatif, dan regression yang relevan.
-- [ ] Perbarui dokumentasi, konfigurasi, serta bukti di docs/TEST_REPORT.md.
+- [x] Verifikasi dependensi AU-008 dan kontrak input/output.
+- [x] Implementasikan evaluator, reason code, dan jalur fail-closed.
+- [x] Tambahkan fixture positif, negatif, dan regresi closed-bar.
+- [ ] Tautkan hasil tes dan PR yang menyelesaikan issue.
 - [ ] Review acceptance dan tautkan PR/commit sebelum menandai DONE.
 
 ## Acceptance criteria
@@ -35,12 +35,12 @@ implementasi, bukan klaim source sudah lengkap.
 
 ## Skenario tes
 
-Compile MetaEditor; closed-bar BUY/SELL/WAIT; data gagal, restart, ownership dan retcode.
-
-Offline: `python -m pytest -q`; lint: `python -m ruff check python tests scripts dashboard`.
-Kompilasi terminal jika relevan: `./scripts/compile_mql5.ps1 -MetaEditor <path>`.
-Kasus tambahan harus mengikuti scope dan AC spesifik di atas; tes umum saja tidak
-cukup untuk menutup issue.
+Fixture offline mencakup kandidat BUY/SELL untuk kedua setup, WAIT, pola
+ganda, false breakout, batas retest, invalidation, chase, OHLC/gap invalid,
+rollover, quote invalid, serta simulasi retry dan restart. Verifikasi native
+mencakup compile MetaEditor, Strategy Tester, dan attach/restart pada preset
+Signal_Only. Ownership posisi, retcode, dan idempotensi order mengikuti AU-014.
+Aturan dan batas diagnostik tercatat di [aturan strategi](../STRATEGY_RULES.md#setup-entry-au-009).
 
 ## Definition of done
 
