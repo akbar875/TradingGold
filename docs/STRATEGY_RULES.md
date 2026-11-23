@@ -124,16 +124,54 @@ awal untuk verifikasi fondasi.
   R:R mengikuti AU-011.
 
 EA menampilkan kandidat sebagai `SETUP_BUY` atau `SETUP_SELL` di baris
-diagnostik. Aksi entry tetap `WAIT`. Jika filter berita diwajibkan, statusnya
-`NEWS_UNKNOWN`. Jika AI diwajibkan dan menjadi gate pertama yang gagal,
-statusnya `AI_UNAVAILABLE`. RANGE_REJECTION di luar scope awal.
+diagnostik. RANGE_REJECTION di luar scope awal.
 
-Catatan `SETUP_CONFIRMED` di Journal dibatasi satu kali per simbol dan candle
-M15 pada terminal yang sama. EA menyimpan timestamp terakhir di
-`MQL5/Files/Aurum_setup_m15_*.bin` sebelum mencatat event, dengan file dibuka
-eksklusif antar-chart. Bar yang sudah dicatat tetap dapat dihitung ulang di
-panel dengan status `DUPLICATE_SIGNAL`. File rusak atau akses gagal menahan
-penerbitan. Jika proses terhenti setelah penyimpanan timestamp dan sebelum
-penulisan ke Journal, event tersebut dapat terlewat. Strategy Tester memakai
-memori per run agar run ulang independen. State eksekusi dan rekonsiliasi
-order mengikuti AU-014.
+## Skor heuristik dan alasan keputusan AU-010
+
+Kandidat yang lolos gate teknikal memiliki `Heuristic score` dalam skala 0–100.
+EA menjumlahkan bobot komponen yang `PASS` dan menampilkan nilai pembanding
+untuk setiap komponen. Nilai bersumber dari snapshot dan struktur bar tertutup.
+Quote berjalan menentukan apakah kandidat masih layak melalui cek AU-009.
+
+| Komponen | Bobot | Kondisi lulus dan bukti |
+|---|---:|---|
+| Setup | 30 | Setup terkonfirmasi. Tampilkan level dan invalidation. |
+| EMA H1 | 15 | EMA cepat di atas EMA lambat untuk BUY dan di bawahnya untuk SELL. Tampilkan kedua EMA. |
+| EMA H4 | 15 | Aturan arah yang sama pada H4. Tampilkan kedua EMA. |
+| ADX M15 | 15 | ADX mencapai `InpRegimeMinTrendAdx`. Tampilkan ADX dan ambangnya. |
+| MACD M15 | 15 | Main di atas signal untuk BUY dan di bawahnya untuk SELL. Tampilkan kedua nilai. |
+| RSI M15 | 10 | RSI di atas 50 untuk BUY dan di bawah 50 untuk SELL. Tampilkan RSI dan 50. |
+
+Empat komponen pertama mendokumentasikan prasyarat kandidat. MACD dan RSI
+menambah skor ketika searah, sehingga kandidat yang lolos memiliki skor 75–100.
+Bobot AU-010 tetap dan totalnya 100. EA tidak memakai ambang skor tambahan.
+Skor mengukur dukungan aturan heuristik. Probabilitas model memiliki kontrak
+tersendiri pada bridge AU-021.
+
+Keputusan entry selalu `WAIT`. Panel memakai alasan utama dan menampilkan
+gate gagal lain yang dapat dievaluasi. Prioritasnya mencakup kill switch dan
+koneksi, validitas akun/data, lonjakan ATR dan spread bar, news, konflik arah
+dan validitas setup, lalu AI. Ketika prasyarat data gagal, gate yang bergantung
+pada data itu dilewati. Bila news diwajibkan, `NEWS_UNKNOWN` memblokir entry.
+Bila AI diwajibkan, `AI_UNAVAILABLE` juga tercatat. `ENGINE_NOT_IMPLEMENTED`
+dipakai ketika tidak ada gate lain yang gagal. Kandidat teknikal yang valid
+dapat tetap terlihat dengan skor meskipun news atau AI memblokir entry.
+Kedua preset tetap signal-only, auto trade nonaktif, dan demo-only.
+
+ID kandidat `AUR1-…` memakai digest deterministik dari akun dan server broker,
+nama simbol persis, timeframe, waktu buka bar tertutup dalam jam server,
+setup, dan arah. Quote, skor, serta restart tidak mengubah ID untuk identitas
+yang sama. Digest dipakai untuk korelasi dan tidak menampilkan login mentah.
+Hasil tanpa kandidat tidak menampilkan ID atau skor.
+
+Journal mencatat `SETUP_CONFIRMED` sebagai event diagnostik dengan ID, skor,
+bukti, dan keputusan `WAIT`. Klaim dibatasi sekali per akun, server, simbol,
+dan bar M15 pada terminal yang sama. EA menyimpan timestamp di
+`MQL5/Files/Aurum_signal_v1_*.bin` sebelum mencatat event, dengan file dibuka
+eksklusif antar-chart. File AU-009 memakai scope berbeda, sehingga event pada
+bar aktif bisa dicatat sekali saat upgrade. `DUPLICATE_SIGNAL` menandai event yang
+sudah diklaim, dengan kandidat tetap terlihat di panel. File rusak atau akses
+gagal menghasilkan `SETUP_STATE_UNAVAILABLE` dan mengosongkan kandidat. Jika
+proses terhenti setelah timestamp tersimpan dan sebelum penulisan Journal,
+event bisa terlewat. Strategy Tester memakai memori per run. State eksekusi dan
+rekonsiliasi order mengikuti AU-014.

@@ -11,7 +11,11 @@
 using string = std::string;
 using datetime = long long;
 using uint = unsigned int;
+#ifdef _WIN32
+using ulong = unsigned long long;
+#else
 using ulong = unsigned long;
+#endif
 
 enum ENUM_TIMEFRAMES { PERIOD_M15 = 15, PERIOD_H1 = 60, PERIOD_H4 = 240 };
 constexpr int INVALID_HANDLE = -1;
@@ -219,6 +223,15 @@ string StringFormat(const string &format, uint value) {
     return encoded;
 }
 
+string StringFormat(const string &format, ulong value) {
+    assert(format == "%016I64X");
+    char encoded[17];
+    std::snprintf(encoded, sizeof(encoded), "%016llX", static_cast<unsigned long long>(value));
+    return encoded;
+}
+
+string IntegerToString(long long value) { return std::to_string(value); }
+
 int FileOpen(const string &path, int flags) {
     assert(!path.empty() && flags == (FILE_READ | FILE_WRITE | FILE_BIN));
     if (claim_file.locked)
@@ -243,6 +256,30 @@ void FileClose(int) { claim_file.locked = false; }
 
 #include "Aurum/Setups.mqh"
 #include "Aurum/SetupClaims.mqh"
+
+string EnumToString(AurumIndicatorStatus value) {
+    return std::array{"INDICATORS_READY", "INDICATOR_HANDLE_FAILED", "INDICATOR_WARMUP",
+                      "INDICATOR_DATA_STALE", "INDICATOR_COPY_FAILED", "INDICATOR_VALUE_INVALID",
+                      "INDICATOR_BAR_CHANGED"}.at(value);
+}
+
+string EnumToString(AurumRegimeReason value) {
+    return std::array{"REGIME_DATA_UNSAFE", "REGIME_ATR_SPIKE", "REGIME_SPREAD_TOO_WIDE",
+                      "REGIME_HTF_CONFLICT", "REGIME_TREND_CONFIRMED", "REGIME_CONSOLIDATION",
+                      "REGIME_INCONCLUSIVE"}.at(value);
+}
+
+string EnumToString(AurumSetupReason value) {
+    return std::array{"SETUP_DATA_INVALID", "SETUP_REGIME_BLOCKED", "NO_VALID_SETUP",
+                      "SETUP_QUOTE_INVALID", "SETUP_INVALIDATED", "PRICE_CHASED",
+                      "SETUP_STOP_DISTANCE", "SETUP_CONFIRMED"}.at(value);
+}
+
+string EnumToString(AurumSetupClaim value) {
+    return std::array{"SETUP_CLAIMED", "DUPLICATE_SIGNAL", "SETUP_STATE_UNAVAILABLE"}.at(value);
+}
+
+#include "Aurum/Signals.mqh"
 
 template <std::size_t Size>
 int CopyBuffer(int handle, int buffer, int shift, int count, double (&values)[Size]) {
@@ -693,6 +730,198 @@ void CheckSetupClaims() {
     assert(AurumClaimSetupBar(path, 37800, true, tester) == SETUP_CLAIMED);
 }
 
+void SetSignalIndicators(AurumIndicatorSnapshot &snapshot, AurumSetupAction action) {
+    const int side = action == SETUP_BUY ? 1 : -1;
+    snapshot.ema_h1_fast = 100 + side;
+    snapshot.ema_h1_slow = 100;
+    snapshot.ema_h4_fast = 100 + side;
+    snapshot.ema_h4_slow = 100;
+    snapshot.ema_m15_fast = 100 + side;
+    snapshot.ema_m15_slow = 100;
+    snapshot.plus_di = 20 + side;
+    snapshot.minus_di = 20;
+    snapshot.atr = 1;
+    snapshot.spread_price = 0.1;
+    snapshot.range_price = 4;
+    snapshot.adx = regime_defaults.min_trend_adx;
+    snapshot.rsi = 50 + side;
+    snapshot.macd_main = side;
+    snapshot.macd_signal = 0;
+}
+
+void ExpectSignalReasons(const AurumSignalResult &result, std::initializer_list<string> reasons) {
+    assert(result.reason_count == static_cast<int>(reasons.size()));
+    assert(std::equal(reasons.begin(), reasons.end(), result.reasons));
+}
+
+void CheckSignalScoring() {
+    const string scope = AurumSignalScope(42, "Fixture-Demo", "XAUUSDm");
+    for (bool breakout : {false, true}) {
+        for (const auto side : {SETUP_BUY, SETUP_SELL}) {
+            SetupFixture input(breakout);
+            if (side == SETUP_SELL)
+                input.Mirror();
+            SetSignalIndicators(input.snapshot, side);
+            AurumSignalResult result;
+            const auto evaluate = [&] {
+                const auto setup = input.Evaluate();
+                AurumEvaluateSignal(INDICATORS_READY, input.snapshot, regime_defaults, input.regime,
+                                    INDICATORS_READY, setup, scope, false, false, result);
+            };
+
+            evaluate();
+            assert(result.technical_score == 100 && result.candidate.action == side);
+            assert(result.candidate.kind == (breakout ? BREAKOUT_RETEST : TREND_PULLBACK));
+            assert(result.candidate.reason == SETUP_CONFIRMED && !result.signal_id.empty());
+            ExpectSignalReasons(result, {"ENGINE_NOT_IMPLEMENTED"});
+            int total_weight = 0;
+            for (const auto &part : result.parts) {
+                assert(part.passed && !part.rule.empty());
+                total_weight += part.weight;
+            }
+            assert(total_weight == result.technical_score);
+            assert(result.parts[0].observed == result.candidate.key_level);
+            assert(result.parts[0].reference == result.candidate.invalidation);
+            assert(result.parts[3].observed == regime_defaults.min_trend_adx);
+
+            const string id = result.signal_id;
+            input.history.bars[17] = {38700, 50.0, 300.0, 1.0, 30.0, 0};
+            ++input.tick.time;
+            input.tick.ask += 0.025;
+            evaluate();
+            assert(result.signal_id == id && result.technical_score == 100);
+            input.snapshot.macd_main = input.snapshot.macd_signal;
+            input.snapshot.rsi = 50;
+            evaluate();
+            assert(result.signal_id == id && result.technical_score == 75);
+            assert(!result.parts[4].passed && !result.parts[5].passed);
+        }
+    }
+}
+
+void CheckSignalGatesAndClaims() {
+    SetupFixture input(false);
+    SetSignalIndicators(input.snapshot, SETUP_BUY);
+    const auto setup = input.Evaluate();
+    const string scope = AurumSignalScope(42, "Fixture-Demo", "XAUUSDm");
+    AurumSignalResult result;
+    const auto evaluate = [&](AurumIndicatorStatus status, AurumIndicatorStatus setup_status,
+                              const AurumSetupResult &candidate, const string &identity,
+                              bool require_news, bool require_ai) {
+        AurumEvaluateSignal(status, input.snapshot, regime_defaults, input.regime, setup_status,
+                            candidate, identity, require_news, require_ai, result);
+    };
+    const auto no_candidate = [&] {
+        assert(result.technical_score == -1 && result.candidate.action == SETUP_WAIT);
+        assert(result.signal_id.empty() && result.parts[0].weight == 0);
+    };
+
+    evaluate(INDICATORS_READY, INDICATORS_READY, setup, scope, true, true);
+    assert(result.technical_score == 100);
+    ExpectSignalReasons(result, {"NEWS_UNKNOWN", "AI_UNAVAILABLE"});
+
+    const string id = result.signal_id;
+    claim_file = {};
+    string path;
+    datetime watermark = 0;
+    assert(AurumClaimSignalDiagnostic(scope, false, path, watermark, result));
+    const string original_path = path;
+    path.clear();
+    watermark = 0;
+    evaluate(INDICATORS_READY, INDICATORS_READY, setup, scope, true, false);
+    assert(!AurumClaimSignalDiagnostic(scope, false, path, watermark, result));
+    assert(path == original_path && result.signal_id == id);
+    ExpectSignalReasons(result, {"NEWS_UNKNOWN", "DUPLICATE_SIGNAL"});
+
+    const string other_account = AurumSignalScope(43, "Fixture-Demo", "XAUUSDm");
+    claim_file = {};
+    claim_file.locked = true;
+    evaluate(INDICATORS_READY, INDICATORS_READY, setup, other_account, false, false);
+    assert(!AurumClaimSignalDiagnostic(other_account, false, path, watermark, result));
+    assert(path != original_path && watermark == 0);
+    ExpectSignalReasons(result, {"SETUP_STATE_UNAVAILABLE"});
+    no_candidate();
+    claim_file.locked = false;
+    evaluate(INDICATORS_READY, INDICATORS_READY, setup, other_account, false, false);
+    assert(AurumClaimSignalDiagnostic(other_account, false, path, watermark, result));
+    assert(result.signal_id != id && watermark == setup.bar_time);
+
+    evaluate(INDICATOR_DATA_STALE, INDICATORS_READY, setup, scope, true, true);
+    ExpectSignalReasons(result, {"INDICATOR_DATA_STALE", "NEWS_UNKNOWN", "AI_UNAVAILABLE"});
+    no_candidate();
+    evaluate(INDICATORS_READY, INDICATOR_BAR_CHANGED, setup, scope, true, false);
+    ExpectSignalReasons(result, {"INDICATOR_BAR_CHANGED", "NEWS_UNKNOWN"});
+    no_candidate();
+    evaluate(INDICATORS_READY, INDICATORS_READY, setup, "", false, false);
+    ExpectSignalReasons(result, {"SIGNAL_ACCOUNT_INVALID"});
+    no_candidate();
+    input.tick.ask = 103;
+    evaluate(INDICATORS_READY, INDICATORS_READY, input.Evaluate(), scope, false, false);
+    ExpectSignalReasons(result, {"PRICE_CHASED"});
+    no_candidate();
+    input.tick.time = input.snapshot.decision_time + 900;
+    evaluate(INDICATORS_READY, INDICATORS_READY, input.Evaluate(), scope, true, false);
+    ExpectSignalReasons(result, {"SETUP_QUOTE_INVALID", "NEWS_UNKNOWN"});
+    no_candidate();
+    input.tick = {38700, 101.25, 101.375};
+    input.history.bars[16].close = 100.75;
+    evaluate(INDICATORS_READY, INDICATORS_READY, input.Evaluate(), scope, false, false);
+    ExpectSignalReasons(result, {"NO_VALID_SETUP"});
+    no_candidate();
+    input.snapshot.rsi = std::numeric_limits<double>::quiet_NaN();
+    evaluate(INDICATORS_READY, INDICATORS_READY, setup, scope, false, false);
+    ExpectSignalReasons(result, {"SIGNAL_DATA_INVALID"});
+    no_candidate();
+
+    SetSignalIndicators(input.snapshot, SETUP_BUY);
+    input.snapshot.ema_h4_fast = 98;
+    const auto classify = [&] {
+        AurumClassifyRegime(INDICATORS_READY, input.snapshot, regime_defaults, input.regime);
+    };
+    classify();
+    evaluate(INDICATORS_READY, INDICATORS_READY, input.Evaluate(), scope, true, true);
+    ExpectSignalReasons(result, {"NEWS_UNKNOWN", "REGIME_HTF_CONFLICT", "AI_UNAVAILABLE"});
+    no_candidate();
+    input.snapshot.atr = 2;
+    input.snapshot.spread_price = 0.25;
+    classify();
+    evaluate(INDICATORS_READY, INDICATORS_READY, input.Evaluate(), scope, true, true);
+    ExpectSignalReasons(result, {"REGIME_ATR_SPIKE", "REGIME_SPREAD_TOO_WIDE", "NEWS_UNKNOWN",
+                                 "REGIME_HTF_CONFLICT", "AI_UNAVAILABLE"});
+    no_candidate();
+
+    SetSignalIndicators(input.snapshot, SETUP_BUY);
+    classify();
+    auto stale_candidate = setup;
+    stale_candidate.bar_time -= 900;
+    evaluate(INDICATORS_READY, INDICATORS_READY, stale_candidate, scope, false, false);
+    ExpectSignalReasons(result, {"SIGNAL_CANDIDATE_INVALID"});
+    no_candidate();
+    stale_candidate.action = SETUP_WAIT;
+    evaluate(INDICATORS_READY, INDICATORS_READY, stale_candidate, scope, false, false);
+    ExpectSignalReasons(result, {"SIGNAL_CANDIDATE_INVALID"});
+    no_candidate();
+}
+
+void CheckSignalIdentity() {
+    const auto id = [](long login, const string &server, const string &symbol, ENUM_TIMEFRAMES frame,
+                       datetime bar, AurumSetupKind kind, AurumSetupAction side) {
+        return AurumSignalId(AurumSignalScope(login, server, symbol), frame, bar, kind, side);
+    };
+    const string original = id(42, "Fixture-Demo", "XAUUSDm", PERIOD_M15, 37800, TREND_PULLBACK, SETUP_BUY);
+    assert(original == "AUR1-155F9947B3855F5A");
+    assert(id(43, "Fixture-Demo", "XAUUSDm", PERIOD_M15, 37800, TREND_PULLBACK, SETUP_BUY) != original);
+    assert(id(42, "Other-Demo", "XAUUSDm", PERIOD_M15, 37800, TREND_PULLBACK, SETUP_BUY) != original);
+    assert(id(42, "Fixture-Demo", "XAUUSDM", PERIOD_M15, 37800, TREND_PULLBACK, SETUP_BUY) != original);
+    assert(id(42, "Fixture-Demo", "XAUUSDm", PERIOD_H1, 37800, TREND_PULLBACK, SETUP_BUY) != original);
+    assert(id(42, "Fixture-Demo", "XAUUSDm", PERIOD_M15, 38700, TREND_PULLBACK, SETUP_BUY) != original);
+    assert(id(42, "Fixture-Demo", "XAUUSDm", PERIOD_M15, 37800, BREAKOUT_RETEST, SETUP_BUY) != original);
+    assert(id(42, "Fixture-Demo", "XAUUSDm", PERIOD_M15, 37800, TREND_PULLBACK, SETUP_SELL) != original);
+    assert(id(0, "Fixture-Demo", "XAUUSDm", PERIOD_M15, 37800, TREND_PULLBACK, SETUP_BUY).empty());
+    assert(id(42, "Fixture-Demo", "XAUUSDm", PERIOD_M15, 37800, NO_SETUP, SETUP_WAIT).empty());
+    assert(AurumSignalScope(42, "a1:", "b") != AurumSignalScope(42, "a", "1:b"));
+}
+
 int main() {
     CheckSnapshot();
     CheckFailuresAndRetry();
@@ -701,4 +930,7 @@ int main() {
     CheckSetupHistory();
     CheckClosedBarSetups();
     CheckSetupClaims();
+    CheckSignalScoring();
+    CheckSignalGatesAndClaims();
+    CheckSignalIdentity();
 }

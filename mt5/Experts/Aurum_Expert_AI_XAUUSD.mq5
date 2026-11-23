@@ -1,10 +1,9 @@
 #property strict
 #property version "3.00"
-#property description "Diagnostik indikator, market regime dan setup closed-bar. Tidak memiliki jalur eksekusi order."
+#property description "Diagnostik sinyal closed-bar, skor heuristik dan reason codes."
 
 #include <Aurum/Status.mqh>
-#include <Aurum/Setups.mqh>
-#include <Aurum/SetupClaims.mqh>
+#include <Aurum/Signals.mqh>
 
 input bool InpSignalOnly = true;
 input bool InpEnableAutoTrade = false;
@@ -97,45 +96,70 @@ int OnInit()
       Print("INDICATOR_HANDLE_FAILED: inisialisasi indikator gagal untuk ",_Symbol);
       return INIT_FAILED;
      }
-   SetupClaimPath=AurumSetupClaimPath(_Symbol);
+   SetupClaimPath="";
    LastSetupClaim=0;
    Comment("Aurum v3 foundation\n",AurumFoundationStatus());
    return INIT_SUCCEEDED;
   }
 
-string SetupDiagnostic(const AurumIndicatorSnapshot &snapshot,const AurumRegimeResult &regime)
+AurumIndicatorStatus ReadSetup(const AurumIndicatorSnapshot &snapshot,const AurumRegimeResult &regime,
+                               AurumSetupResult &result)
   {
+   ZeroMemory(result);
+   result.reason=SETUP_REGIME_BLOCKED;
    if(regime.direction==REGIME_DIRECTION_BLOCKED)
-      return "SETUP_REGIME_BLOCKED";
+      return INDICATORS_READY;
    AurumSetupHistory history;
    const int count=SetupSettings.key_lookback+SetupSettings.max_retest_bars+2;
    const AurumIndicatorStatus status=Indicators.ReadSetupHistory(snapshot,count,history);
    if(status!=INDICATORS_READY)
-      return EnumToString(status);
+      return status;
 
    MqlTick quote;
    long chart_mode;
    if(!SymbolInfoInteger(_Symbol,SYMBOL_CHART_MODE,chart_mode) || chart_mode!=SYMBOL_CHART_MODE_BID ||
       !SymbolInfoTick(_Symbol,quote))
-      return "SETUP_QUOTE_INVALID";
+     {
+      result.reason=SETUP_QUOTE_INVALID;
+      return INDICATORS_READY;
+     }
 
-   AurumSetupResult result;
    AurumEvaluateSetup(snapshot,regime,history,SetupSettings,quote,result);
-   if(result.action==SETUP_WAIT)
-      return EnumToString(result.reason);
+   return INDICATORS_READY;
+  }
 
-   const AurumSetupClaim claim=AurumClaimSetupBar(SetupClaimPath,result.bar_time,
-                                                 (bool)MQLInfoInteger(MQL_TESTER),LastSetupClaim);
-   if(claim==SETUP_STATE_UNAVAILABLE)
-      return EnumToString(claim);
+string SignalReasons(const AurumSignalResult &result)
+  {
+   string text="WAIT | "+result.reasons[0]+" | SIGNAL ONLY";
+   if(result.reason_count>1)
+     {
+      text+=" | Additional: ";
+      for(int index=1;index<result.reason_count;++index)
+         text+=(index==1 ? "" : ", ")+result.reasons[index];
+     }
+   return text;
+  }
 
-   const string candidate=StringFormat("%s | %s | Level %s | Invalidation %s",
-                                       EnumToString(result.action),EnumToString(result.kind),
-                                       DoubleToString(result.key_level,_Digits),
-                                       DoubleToString(result.invalidation,_Digits));
-   if(claim==SETUP_CLAIMED)
-      Print("SETUP_CONFIRMED | ",_Symbol," | ",TimeToString(result.bar_time,TIME_DATE|TIME_MINUTES)," | ",candidate);
-   return candidate+(claim==DUPLICATE_SIGNAL ? " | DUPLICATE_SIGNAL" : "");
+string SignalCandidate(const AurumSignalResult &result,const string separator)
+  {
+   if(result.technical_score<0)
+      return "";
+   string text=StringFormat("Technical candidate: %s | %s | %s | %s | Heuristic score: %d/100",
+                            EnumToString(result.candidate.action),EnumToString(result.candidate.kind),
+                            EnumToString(result.candidate.reason),result.signal_id,result.technical_score);
+   for(int index=0;index<AURUM_SCORE_PARTS;++index)
+      text+=separator+StringFormat("%s %s weight=%d (%s / %s)",result.parts[index].rule,
+                                   result.parts[index].passed ? "PASS" : "FAIL",result.parts[index].weight,
+                                   DoubleToString(result.parts[index].observed,8),
+                                   DoubleToString(result.parts[index].reference,8));
+   return text;
+  }
+
+void RecordSignalDiagnostic(const string scope,AurumSignalResult &result)
+  {
+   if(AurumClaimSignalDiagnostic(scope,(bool)MQLInfoInteger(MQL_TESTER),SetupClaimPath,LastSetupClaim,result))
+      Print("SETUP_CONFIRMED | ",_Symbol," | ",TimeToString(result.candidate.bar_time,TIME_DATE|TIME_MINUTES),
+            " (server) | ",SignalReasons(result)," | ",SignalCandidate(result," | "));
   }
 
 void OnTick()
@@ -148,22 +172,37 @@ void OnTick()
       return;
      }
 
+   const string scope=AurumSignalScope(AccountInfoInteger(ACCOUNT_LOGIN),AccountInfoString(ACCOUNT_SERVER),_Symbol);
    AurumIndicatorSnapshot snapshot;
    const AurumIndicatorStatus status=Indicators.ReadLatest(snapshot);
    AurumRegimeResult regime;
    AurumClassifyRegime(status,snapshot,RegimeSettings,regime);
    const string regime_line=StringFormat("\nRegime: %s | %s | %s",EnumToString(regime.regime),
                                          EnumToString(regime.direction),EnumToString(regime.reason));
-   if(status!=INDICATORS_READY)
+   AurumSetupResult setup;
+   ZeroMemory(setup);
+   AurumIndicatorStatus setup_status=status;
+   if(status==INDICATORS_READY)
+      setup_status=ReadSetup(snapshot,regime,setup);
+
+   AurumSignalResult signal;
+   const string latest_scope=AurumSignalScope(AccountInfoInteger(ACCOUNT_LOGIN),AccountInfoString(ACCOUNT_SERVER),_Symbol);
+   if(scope!=latest_scope)
      {
-      Comment(header,"WAIT | ",EnumToString(status),regime_line);
+      Comment(header,"WAIT | SIGNAL_ACCOUNT_CHANGED | SIGNAL ONLY");
       return;
      }
+   AurumEvaluateSignal(status,snapshot,RegimeSettings,regime,setup_status,setup,scope,
+                       InpRequireNewsFilter,InpRequireAI,signal);
+   if(status!=INDICATORS_READY)
+     {
+      Comment(header,SignalReasons(signal),regime_line);
+      return;
+     }
+   RecordSignalDiagnostic(scope,signal);
 
-   const string setup_line=SetupDiagnostic(snapshot,regime);
-   const string entry_reason=InpRequireNewsFilter ? "NEWS_UNKNOWN" :
-                             (InpRequireAI ? "AI_UNAVAILABLE" : "ENGINE_NOT_IMPLEMENTED");
-   Comment(header,"WAIT | ",entry_reason," | SIGNAL ONLY",regime_line,"\nSetup diagnostic: ",setup_line,
+   const string candidate=SignalCandidate(signal,"\n");
+   Comment(header,SignalReasons(signal),regime_line,candidate=="" ? "" : "\n"+candidate,
            "\nBar open (waktu server) M15 ",TimeToString(snapshot.m15_open,TIME_DATE|TIME_MINUTES),
            " | H1 ",TimeToString(snapshot.h1_open,TIME_DATE|TIME_MINUTES),
            " | H4 ",TimeToString(snapshot.h4_open,TIME_DATE|TIME_MINUTES),

@@ -203,6 +203,29 @@ demo **NOT RUN** karena terminal pengujian tidak tersedia. Verifikasi native
 masih perlu memeriksa panel WAIT, quote Bid/Ask, dan satu catatan Journal saat
 dua chart simbol yang sama berjalan serta setelah EA dipasang ulang.
 
+## AU-010 — skor heuristik dan reason codes, 24 November 2026
+
+[PR #42](https://github.com/akbar875/TradingGold/pull/42), implementasi
+`17d2e58`. Hasil CI ada di [checks PR](https://github.com/akbar875/TradingGold/pull/42/checks).
+
+`scripts/test_offline.ps1` **PASS** pada Windows dan Python 3.12.14 dengan
+**178 tes**. Ruff, format, mypy, doctor offline, dan hash keenam baseline lulus.
+Fixture C++ menjalankan `Signals.mqh` bersama evaluator setup, regime dan file
+klaim dengan API terminal stub. Kasus uji mencakup BUY dan SELL untuk kedua
+setup, rincian skor 75 dan 100, ID yang stabil selama evaluasi tick, dan
+isolasi dimensi akun, server, simbol, timeframe, bar, setup, dan arah.
+
+Kasus negatif mencakup skor 100 saat news/AI tetap memblokir entry, prioritas
+news dibanding konflik H1/H4, ATR dan spread sama-sama gagal, data basi, bar
+bergeser, NaN, quote invalid, chase, setup invalid, akun invalid, kandidat
+dengan bar yang salah, lock file gagal, serta restart dan deduplikasi.
+Tes safety memeriksa kedua preset dan ketiadaan jalur order.
+
+Compile MetaEditor **NOT RUN** (`COMPILER_UNAVAILABLE`, runner exit 2,
+`reports/mql5-status.txt`). Strategy Tester, panel/Journal native dan demo
+**NOT RUN** karena terminal tidak tersedia. Fixture offline memakai stub
+terminal. Tes ownership dan retcode mengikuti AU-014.
+
 ## Verifikasi manual yang masih dibutuhkan
 
 - Compile source dan include pada MetaEditor, periksa log/artifact baru.

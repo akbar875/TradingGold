@@ -14,6 +14,8 @@
   pemblokiran pada data invalid di EA. Aksi tetap WAIT pada fase fondasi.
 - AU-009: evaluator trend pullback dan breakout-retest M15, invalidation dan
   chase limit, serta deduplikasi kandidat teknikal per candle di Journal.
+- AU-010: skor heuristik closed-bar dengan bukti per aturan, alasan WAIT
+  terurut, serta ID kandidat dan deduplikasi Journal dalam scope akun broker.
 
 ## 0.3.0.dev0 — 22 November 2026
 
