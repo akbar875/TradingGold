@@ -106,7 +106,8 @@ sebelumnya dilacak di AU-006. Freshness registry model dilacak di AU-020.
 
 ## AU-006 — kualitas candle dan snapshot UTC, 23 November 2026
 
-`scripts/test_offline.ps1` **PASS**, 176 tes pada Windows dan Python 3.12.14.
+[PR #38](https://github.com/akbar875/TradingGold/pull/38), commit implementasi
+`2969bf8`. `scripts/test_offline.ps1` **PASS**, 176 tes pada Windows dan Python 3.12.14.
 Ruff, pemeriksaan format, mypy, doctor offline, dan regresi hash keenam
 baseline lulus. Coverage branch modul config 99%, CLI 97%, data quality 99%,
 dan adapter MT5 98%.
@@ -116,7 +117,7 @@ yang gagal di CLI, penutupan sesi UTC yang mencakup seluruh gap, spread
 harga berdasarkan broker point, spread nol pada snapshot M15, OHLCV yang
 rusak, outlier, dan batas stale satu interval. Fixture MT5 memverifikasi
 posisi 1 dan penolakan candle terbuka. Regresi snapshot mengubah nilai
-candle masa depan dan memverifikasi hasil lama tetap sama. Dokter diuji
+candle masa depan dan memverifikasi hasil lama tetap sama. `doctor` diuji
 dengan H4 yang baru tutup setelah batas keputusan M15.
 
 Integrasi terminal MT5/broker demo **NOT RUN** karena paket dan terminal demo
