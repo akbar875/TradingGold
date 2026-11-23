@@ -2,10 +2,20 @@
 #define AURUM_INDICATORS_MQH
 
 #define AURUM_REGIME_LOOKBACK 8
+#define AURUM_SETUP_MAX_LOOKBACK 64
+#define AURUM_SETUP_MAX_RETEST_BARS 16
+#define AURUM_SETUP_MAX_BARS (AURUM_SETUP_MAX_LOOKBACK+AURUM_SETUP_MAX_RETEST_BARS+2)
 
 bool AurumPositiveNumber(const double value)
   {
    return value>0 && value!=EMPTY_VALUE && MathIsValidNumber(value);
+  }
+
+bool AurumValidOhlc(const MqlRates &bar)
+  {
+   return AurumPositiveNumber(bar.open) && AurumPositiveNumber(bar.high) &&
+          AurumPositiveNumber(bar.low) && AurumPositiveNumber(bar.close) &&
+          bar.low<=MathMin(bar.open,bar.close) && bar.high>=MathMax(bar.open,bar.close);
   }
 
 enum AurumIndicatorStatus
@@ -66,6 +76,13 @@ struct AurumIndicatorSnapshot
    double prior_atr_mean;
    double range_price;
    double spread_price;
+  };
+
+struct AurumSetupHistory
+  {
+   int count;
+   double pullback_ema;
+   MqlRates bars[AURUM_SETUP_MAX_BARS];
   };
 
 enum AurumIndicatorHandle
@@ -171,10 +188,7 @@ private:
          const datetime expected=decision_time-(AURUM_REGIME_LOOKBACK+1-index)*PeriodSeconds(PERIOD_M15);
          if(rates[index].time!=expected)
             return INDICATOR_DATA_STALE;
-         if(!AurumPositiveNumber(rates[index].open) || !AurumPositiveNumber(rates[index].high) ||
-            !AurumPositiveNumber(rates[index].low) || !AurumPositiveNumber(rates[index].close) ||
-            rates[index].low>MathMin(rates[index].open,rates[index].close) ||
-            rates[index].high<MathMax(rates[index].open,rates[index].close))
+         if(!AurumValidOhlc(rates[index]))
             return INDICATOR_VALUE_INVALID;
          low=MathMin(low,rates[index].low);
          high=MathMax(high,rates[index].high);
@@ -304,6 +318,30 @@ public:
       pending.m15_open=m15_open;
       pending.decision_time=decision_time;
       snapshot=pending;
+      return INDICATORS_READY;
+     }
+
+   AurumIndicatorStatus ReadSetupHistory(const AurumIndicatorSnapshot &snapshot,const int count,
+                                         AurumSetupHistory &history)
+     {
+      history.count=0;
+      const int seconds=PeriodSeconds(PERIOD_M15);
+      if(count<3 || count>AURUM_SETUP_MAX_BARS || snapshot.m15_open<=0 ||
+         snapshot.m15_open+seconds!=snapshot.decision_time)
+         return INDICATOR_VALUE_INVALID;
+
+      const int bars=Bars(m_symbol,PERIOD_M15);
+      if(bars<=count || !SeriesInfoInteger(m_symbol,PERIOD_M15,SERIES_SYNCHRONIZED))
+         return INDICATOR_WARMUP;
+      AurumIndicatorStatus status=INDICATORS_READY;
+      if(!ReadValue(HANDLE_EMA_M15_FAST,0,2,bars,m_periods.ema_m15_fast,history.pullback_ema,status))
+         return status;
+      if(CopyRates(m_symbol,PERIOD_M15,1,count,history.bars)!=count)
+         return INDICATOR_COPY_FAILED;
+      if(!SameSeriesBar(PERIOD_M15,1,snapshot.m15_open,bars) ||
+         iTime(m_symbol,PERIOD_M15,0)!=snapshot.decision_time)
+         return INDICATOR_BAR_CHANGED;
+      history.count=count;
       return INDICATORS_READY;
      }
   };

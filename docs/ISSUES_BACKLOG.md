@@ -12,7 +12,7 @@
 | AU-006 | [Validasi data candle, spread, UTC dan closed-bar](issues/AU-006-validasi-data-candle-spread-utc-dan-closed-bar.md) | P0 | data | AU-005 | DONE (verifikasi offline) |
 | AU-007 | [Indikator teknikal MQL5 yang konsisten](issues/AU-007-indikator-teknikal-mql5-yang-konsisten.md) | P0 | mql5 | AU-002 | DONE (verifikasi offline) |
 | AU-008 | [Market regime dan filter arah H1/H4](issues/AU-008-market-regime-dan-filter-arah-h1-h4.md) | P0 | mql5 | AU-007 | DONE (verifikasi offline) |
-| AU-009 | [Setup entry breakout retest dan trend pullback](issues/AU-009-setup-entry-breakout-retest-dan-trend-pullback.md) | P0 | mql5 | AU-008 | OPEN |
+| AU-009 | [Setup entry breakout retest dan trend pullback](issues/AU-009-setup-entry-breakout-retest-dan-trend-pullback.md) | P0 | mql5 | AU-008 | DONE (verifikasi offline) |
 | AU-010 | [Explainable signal scoring dan reason codes](issues/AU-010-explainable-signal-scoring-dan-reason-codes.md) | P0 | mql5 | AU-009 | OPEN |
 | AU-011 | [Trading plan entry, stop loss dan take profit](issues/AU-011-trading-plan-entry-stop-loss-dan-take-profit.md) | P0 | risk | AU-010 | OPEN |
 | AU-012 | [Position sizing dan margin gate 1:2000](issues/AU-012-position-sizing-dan-margin-gate-1-2000.md) | P0 | risk | AU-011 | OPEN |

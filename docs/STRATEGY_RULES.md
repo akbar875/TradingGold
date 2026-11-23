@@ -79,12 +79,61 @@ snapshot gagal. Jika history siap kembali, snapshot yang sama boleh dicoba
 ulang. Restart menghitung hasil dari snapshot yang tersedia, tanpa menyimpan
 regime sebelumnya atau menunggu beberapa bar konfirmasi.
 
-## Sinyal dan struktur pasar
+## Setup entry AU-009
 
-Snapshot lengkap tetap menghasilkan `WAIT | ENGINE_NOT_IMPLEMENTED`.
-Swing serta support/resistance FR-004 mengikuti AU-009 untuk setup dan AU-011
-untuk SL/TP. Invalidation, chase limit, dan bobot skor mengikuti implementasi
-setup/scoring.
-BUY/SELL bergantung pada gate pasar, AI saat diwajibkan, dan risiko.
-Setup target tetap TREND_PULLBACK dan BREAKOUT_RETEST. RANGE_REJECTION di luar
-scope awal. Skor 0–100 adalah heuristik.
+Kedua setup hanya dievaluasi bila AU-008 memberi izin arah. Candle keputusan
+adalah M15 `shift=1` dan candle sentuh adalah `shift=2`. Evaluator memerlukan
+`key_lookback + max_retest_bars + 2` candle M15 berurutan dengan OHLC valid,
+berakhir tepat pada candle keputusan. Gap, salinan parsial, atau rollover
+selama pembacaan menghasilkan WAIT. EMA untuk zona pullback adalah EMA fast
+yang sudah tersedia saat candle sentuh tutup (`shift=2`).
+
+| Input EA dan preset | Default | Aturan |
+|---|---:|---|
+| `InpSetupKeyLookback` | 12 | Jumlah bar tertutup sebelum breakout untuk swing high/low, 2–64 |
+| `InpSetupMaxRetestBars` | 3 | Jarak breakout ke retest dalam bar, inklusif, 1–16 |
+| `InpSetupZoneAtr` | 0.30 | Jarak ekstrem sentuh ke level maksimum di kedua sisi, dalam kelipatan ATR baseline |
+| `InpSetupMinBreakoutBodyRatio` | 0.60 | Body searah minimal sebagai fraksi high–low breakout, dalam `(0, 1]` |
+| `InpSetupMaxChaseAtr` | 1.50 | Jarak searah maksimum dari level ke harga, minimal sebesar toleransi zona |
+| `InpSetupMaxStopAtr` | 3.00 | Jarak maksimum dari harga indikatif ke invalidation struktur, sebelum buffer dan pembulatan |
+
+Ambang ATR memakai rata-rata ATR delapan candle sebelum keputusan seperti
+AU-008. Parameter pecahan harus positif dan finite. Nilai ini adalah aturan
+awal untuk verifikasi fondasi.
+
+- **TREND_PULLBACK BUY.** Low candle sentuh berada dalam zona EMA fast dan
+  candle itu tutup pada atau di atas EMA. Candle keputusan bullish, tutup di
+  atas high candle sentuh dan memiliki low yang lebih tinggi. Invalidation
+  berada di low candle sentuh. SELL mencerminkan semua perbandingan.
+- **BREAKOUT_RETEST BUY.** Resistance adalah high tertinggi pada jendela yang
+  berakhir sebelum breakout. Candle breakout buka pada atau di bawah level,
+  tutup di atasnya dan memenuhi rasio body. Semua candle antara breakout dan
+  retest wajib tutup di atas level. Retest adalah candle sentuh dengan low
+  dalam zona dan close di atas level. Candle keputusan memakai aturan
+  continuation dan invalidation yang sama seperti pullback. Untuk SELL,
+  support adalah low terendah dan semua perbandingan dicerminkan. Breakout
+  terbaru yang lolos dipilih. Jika kedua setup valid, breakout diprioritaskan
+  sebelum cek harga.
+- **Harga dan invalidation.** Setup memakai chart berbasis Bid dan quote dengan
+  Bid/Ask valid pada interval M15 setelah keputusan. Bid yang mencapai
+  invalidation atau bergerak melewati sisi berlawanan zona memblokir setup.
+  Chase limit berlaku pada close konfirmasi dan harga indikatif Ask untuk BUY
+  atau Bid untuk SELL. Harga indikatif juga harus di sisi aman invalidation dan
+  dalam batas jarak stop struktur. Panel menampilkan alasan WAIT saat salah
+  satu pemeriksaan gagal. SL/TP final, biaya, pembulatan broker, dan kelayakan
+  R:R mengikuti AU-011.
+
+EA menampilkan kandidat sebagai `SETUP_BUY` atau `SETUP_SELL` di baris
+diagnostik. Aksi entry tetap `WAIT`. Jika filter berita diwajibkan, statusnya
+`NEWS_UNKNOWN`. Jika AI diwajibkan dan menjadi gate pertama yang gagal,
+statusnya `AI_UNAVAILABLE`. RANGE_REJECTION di luar scope awal.
+
+Catatan `SETUP_CONFIRMED` di Journal dibatasi satu kali per simbol dan candle
+M15 pada terminal yang sama. EA menyimpan timestamp terakhir di
+`MQL5/Files/Aurum_setup_m15_*.bin` sebelum mencatat event, dengan file dibuka
+eksklusif antar-chart. Bar yang sudah dicatat tetap dapat dihitung ulang di
+panel dengan status `DUPLICATE_SIGNAL`. File rusak atau akses gagal menahan
+penerbitan. Jika proses terhenti setelah penyimpanan timestamp dan sebelum
+penulisan ke Journal, event tersebut dapat terlewat. Strategy Tester memakai
+memori per run agar run ulang independen. State eksekusi dan rekonsiliasi
+order mengikuti AU-014.

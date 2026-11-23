@@ -14,7 +14,8 @@ Adapter mengimpor MT5 secara lazy. Doctor memeriksa snapshot M15/H1/H4 pada
 waktu tutup M15. Fetch-data memvalidasi candle MT5 tertutup sebelum mencetak
 JSON dan mengonversi spread points memakai point simbol. Offline mode
 tidak menginisialisasi MT5. EA membaca snapshot indikator M15/H1/H4 dari terminal
-MT5, mengklasifikasikan market regime dan menampilkan WAIT. Dashboard menampilkan empty states.
+MT5, mengklasifikasikan market regime, mengevaluasi setup M15, dan menampilkan
+aksi WAIT dengan diagnostik setup. Dashboard menampilkan empty states.
 
 ## Kontrak dan peta pengembangan
 
@@ -30,7 +31,7 @@ MT5, mengklasifikasikan market regime dan menampilkan WAIT. Dashboard menampilka
 | bridge.py | Atomic CSV writer, canonical checksum dan context validation | Direncanakan AU-021 |
 | costs.py, backtest.py | Simulasi setelah biaya dan intrabar konservatif | Direncanakan AU-023 |
 | journal.py | Structured audit events dan redaksi data akun | Direncanakan AU-027 |
-| mt5/Experts dan Include | EA diagnostik dengan snapshot indikator M15/H1/H4 dan filter market regime | AU-007/008, verifikasi offline. Setup, sinyal dan risiko di AU-009..016/022 |
+| mt5/Experts dan Include | EA diagnostik dengan snapshot indikator M15/H1/H4, filter regime, evaluasi setup dan deduplikasi event per candle | AU-007/008/009, verifikasi offline. Sinyal final dan risiko di AU-010..016/022 |
 | dashboard/app.py | Empty states dan konfigurasi Python read-only | Awal; AU-026 belum selesai |
 
 Modul yang belum dikerjakan dicatat di tabel; tidak dibuat sebagai file kosong

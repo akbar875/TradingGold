@@ -2,6 +2,7 @@
 #include <array>
 #include <cassert>
 #include <cmath>
+#include <cstdio>
 #include <limits>
 #include <string>
 #include <tuple>
@@ -9,6 +10,8 @@
 
 using string = std::string;
 using datetime = long long;
+using uint = unsigned int;
+using ulong = unsigned long;
 
 enum ENUM_TIMEFRAMES { PERIOD_M15 = 15, PERIOD_H1 = 60, PERIOD_H4 = 240 };
 constexpr int INVALID_HANDLE = -1;
@@ -25,6 +28,12 @@ struct MqlRates {
     double low;
     double close;
     int spread;
+};
+
+struct MqlTick {
+    datetime time;
+    double bid;
+    double ask;
 };
 
 struct Fixture {
@@ -44,6 +53,7 @@ struct Fixture {
     bool calculate_on_copy = false;
     bool move_m15_during_copy = false;
     bool move_h4_during_rates = false;
+    bool move_m15_during_rates = false;
     bool rates_partial = false;
     bool atr_window_partial = false;
     bool rates_gap = false;
@@ -162,7 +172,7 @@ int CopyBuffer(int handle, int buffer, int shift, int count, double (&values)[Si
 
 template <std::size_t Size>
 int CopyRates(const string &, ENUM_TIMEFRAMES timeframe, int shift, int count, MqlRates (&rates)[Size]) {
-    assert(timeframe == PERIOD_M15 && shift == 1 && count == static_cast<int>(Size));
+    assert(timeframe == PERIOD_M15 && shift == 1 && count <= static_cast<int>(Size));
     if (fixture.rates_partial)
         return count - 1;
     for (int index = 0; index < count; ++index) {
@@ -176,6 +186,8 @@ int CopyRates(const string &, ENUM_TIMEFRAMES timeframe, int shift, int count, M
         rates[0].high = 2019.0;
     if (fixture.move_h4_during_rates)
         fixture.h4 = {43200, 28800, 14400, 3600};
+    if (fixture.move_m15_during_rates)
+        fixture.m15 = {39600, 38700};
     return count;
 }
 
@@ -184,7 +196,53 @@ double SymbolInfoDouble(const string &symbol, int property) {
     return fixture.point;
 }
 
-#include "Aurum/Regime.mqh"
+constexpr int FILE_READ = 1;
+constexpr int FILE_WRITE = 2;
+constexpr int FILE_BIN = 4;
+
+struct ClaimFile {
+    bool locked;
+    bool fail_write;
+    bool fail_flush;
+    int error;
+    ulong size;
+    long watermark;
+} claim_file;
+
+int StringLen(const string &value) { return static_cast<int>(value.size()); }
+int StringGetCharacter(const string &value, int index) { return value.at(index); }
+string StringFormat(const string &format, uint value) {
+    assert(format == "%04X");
+    string encoded;
+    for (int shift = 12; shift >= 0; shift -= 4)
+        encoded += "0123456789ABCDEF"[(value >> shift) & 15];
+    return encoded;
+}
+
+int FileOpen(const string &path, int flags) {
+    assert(!path.empty() && flags == (FILE_READ | FILE_WRITE | FILE_BIN));
+    if (claim_file.locked)
+        return INVALID_HANDLE;
+    claim_file.locked = true;
+    return 1;
+}
+void ResetLastError() { claim_file.error = 0; }
+int GetLastError() { return claim_file.error; }
+ulong FileSize(int) { return claim_file.size; }
+long FileReadLong(int) { return claim_file.watermark; }
+bool FileSeek(int, long offset, int origin) { return offset == 0 && origin == SEEK_SET; }
+uint FileWriteLong(int, long value) {
+    if (claim_file.fail_write)
+        return 0;
+    claim_file.watermark = value;
+    claim_file.size = sizeof(long);
+    return sizeof(long);
+}
+void FileFlush(int) { claim_file.error = claim_file.fail_flush ? 1 : 0; }
+void FileClose(int) { claim_file.locked = false; }
+
+#include "Aurum/Setups.mqh"
+#include "Aurum/SetupClaims.mqh"
 
 template <std::size_t Size>
 int CopyBuffer(int handle, int buffer, int shift, int count, double (&values)[Size]) {
@@ -442,9 +500,205 @@ void CheckRegimeBoundariesAndInvalidation() {
     indicators.Release();
 }
 
+const AurumSetupSettings setup_defaults{12, 3, 0.30, 0.60, 1.50, 3.00};
+
+void CheckSetupHistory() {
+    fixture = {};
+    AurumIndicators indicators;
+    AurumIndicatorSnapshot snapshot;
+    AurumSetupHistory history;
+    assert(indicators.Create("XAUUSDm", defaults));
+    assert(indicators.ReadLatest(snapshot) == INDICATORS_READY);
+    assert(indicators.ReadSetupHistory(snapshot, 17, history) == INDICATORS_READY);
+    assert(history.count == 17 && history.bars[16].time == snapshot.m15_open);
+    assert(history.bars[0].time == snapshot.decision_time - 17 * 900);
+    assert((fixture.copies.back() == std::tuple<int, int, int>{HANDLE_EMA_M15_FAST, 0, 2}));
+
+    fixture.rates_partial = true;
+    assert(indicators.ReadSetupHistory(snapshot, 17, history) == INDICATOR_COPY_FAILED);
+    assert(history.count == 0);
+    fixture.rates_partial = false;
+    fixture.move_m15_during_rates = true;
+    assert(indicators.ReadSetupHistory(snapshot, 17, history) == INDICATOR_BAR_CHANGED);
+    assert(history.count == 0);
+    fixture.move_m15_during_rates = false;
+    fixture.h1 = {39600, 36000, 32400, 28800};
+    assert(indicators.ReadLatest(snapshot) == INDICATORS_READY);
+    assert(indicators.ReadSetupHistory(snapshot, 17, history) == INDICATORS_READY);
+    indicators.Release();
+}
+
+struct SetupFixture {
+    AurumIndicatorSnapshot snapshot{};
+    AurumRegimeResult regime{TREND_UP, REGIME_BUY_ALLOWED, REGIME_TREND_CONFIRMED};
+    AurumSetupHistory history{};
+    MqlTick tick{38700, 101.25, 101.375};
+    AurumSetupSettings settings = setup_defaults;
+
+    explicit SetupFixture(bool breakout) {
+        snapshot.m15_open = 37800;
+        snapshot.decision_time = 38700;
+        snapshot.prior_atr_mean = 1.0;
+        history.count = 17;
+        history.pullback_ema = breakout ? 96.0 : 100.0;
+        for (int index = 0; index < history.count; ++index)
+            history.bars[index] = {snapshot.decision_time - (history.count - index) * 900,
+                                   99.0, breakout ? 100.0 : 102.0, 98.0, 99.5, 0};
+        history.bars[14] = {36000, 99.75, 101.25, 99.625, 101.0, 0};
+        history.bars[15] = {36900, 100.75, 101.0, 99.875, 100.625, 0};
+        history.bars[16] = {37800, 100.5, 101.375, 100.25, 101.25, 0};
+    }
+
+    void Mirror() {
+        regime = {TREND_DOWN, REGIME_SELL_ALLOWED, REGIME_TREND_CONFIRMED};
+        history.pullback_ema = 200.0 - history.pullback_ema;
+        for (int index = 0; index < history.count; ++index) {
+            MqlRates &bar = history.bars[index];
+            const double high = bar.high;
+            bar.high = 200.0 - bar.low;
+            bar.low = 200.0 - high;
+            bar.open = 200.0 - bar.open;
+            bar.close = 200.0 - bar.close;
+        }
+        tick.bid = 98.625;
+        tick.ask = 98.75;
+    }
+
+    AurumSetupResult Evaluate() const {
+        AurumSetupResult result{SETUP_BUY, TREND_PULLBACK, SETUP_CONFIRMED, 1, 1.0, 1.0};
+        AurumEvaluateSetup(snapshot, regime, history, settings, tick, result);
+        return result;
+    }
+
+    void ExpectWait(AurumSetupReason reason) const {
+        const auto result = Evaluate();
+        assert(result.action == SETUP_WAIT && result.kind == NO_SETUP && result.reason == reason);
+        assert(result.bar_time == 0 && result.key_level == 0 && result.invalidation == 0);
+    }
+};
+
+void CheckClosedBarSetups() {
+    for (bool breakout : {false, true}) {
+        SetupFixture input(breakout);
+        const AurumSetupKind expected = breakout ? BREAKOUT_RETEST : TREND_PULLBACK;
+        const auto buy = input.Evaluate();
+        assert(buy.action == SETUP_BUY && buy.kind == expected && buy.reason == SETUP_CONFIRMED);
+        assert(buy.bar_time == 37800 && buy.key_level == 100.0 && buy.invalidation == 99.875);
+        // Bars outside the committed window, including a hypothetical future bar, are ignored.
+        input.history.bars[17] = {38700, 50.0, 300.0, 1.0, 30.0, 0};
+        assert(input.Evaluate().kind == expected);
+        input.Mirror();
+        const auto sell = input.Evaluate();
+        assert(sell.action == SETUP_SELL && sell.kind == expected && sell.key_level == 100.0);
+        assert(sell.invalidation == 100.125);
+        input.tick.bid = 98.0;
+        input.ExpectWait(PRICE_CHASED);
+    }
+
+    SetupFixture input(true);
+    input.history.pullback_ema = 100.0;
+    assert(input.Evaluate().kind == BREAKOUT_RETEST); // Both patterns qualify, one result wins.
+    input = SetupFixture(true);
+    input.history.bars[16].close = 101.0;
+    input.ExpectWait(NO_VALID_SETUP); // High pierced retest high, closed price did not.
+    input = SetupFixture(true);
+    input.history.bars[14].open = 100.0;
+    input.history.bars[14].low = 98.0;
+    input.ExpectWait(NO_VALID_SETUP); // Breakout body too small.
+    input = SetupFixture(true);
+    input.history.bars[15].close = 99.9;
+    input.ExpectWait(NO_VALID_SETUP); // Retest closed back inside.
+    input = SetupFixture(true);
+    input.history.bars[13] = input.history.bars[14];
+    input.history.bars[13].time = 35100;
+    input.history.bars[14] = {36000, 100.5, 100.6, 99.75, 100.25, 0};
+    assert(input.Evaluate().kind == BREAKOUT_RETEST); // Level remains frozen from before breakout.
+    input.history.bars[14].close = 99.9;
+    input.ExpectWait(NO_VALID_SETUP); // An intervening close cancels the breakout.
+    input = SetupFixture(true);
+    input.history.bars[12] = input.history.bars[14];
+    input.history.bars[12].time = 34200;
+    input.history.bars[13] = {35100, 100.5, 100.6, 100.1, 100.25, 0};
+    input.history.bars[14] = {36000, 100.5, 100.6, 100.1, 100.25, 0};
+    assert(input.Evaluate().kind == BREAKOUT_RETEST); // Exactly three bars to retest.
+    input = SetupFixture(true);
+    input.history.bars[11] = input.history.bars[14];
+    input.history.bars[11].time = 33300;
+    input.history.bars[12] = {34200, 100.5, 100.6, 100.1, 100.25, 0};
+    input.history.bars[13] = {35100, 100.5, 100.6, 100.1, 100.25, 0};
+    input.history.bars[14] = {36000, 100.5, 100.6, 100.1, 100.25, 0};
+    input.ExpectWait(NO_VALID_SETUP); // Breakout four bars before retest exceeds the limit.
+    input = SetupFixture(false);
+    input.history.bars[16].low = 99.875;
+    input.ExpectWait(NO_VALID_SETUP); // Confirmation wick reached the invalidation.
+    input = SetupFixture(false);
+    input.tick.ask = 101.5;
+    assert(input.Evaluate().action == SETUP_BUY);
+    input.tick.ask = 101.501;
+    input.ExpectWait(PRICE_CHASED);
+    input.tick = {38700, 99.875, 100.0};
+    input.ExpectWait(SETUP_INVALIDATED);
+    input.tick = {38699, 101.25, 101.375};
+    input.ExpectWait(SETUP_QUOTE_INVALID);
+    input.tick.time = 39600;
+    input.ExpectWait(SETUP_QUOTE_INVALID);
+    input.tick = {38700, 101.25, 101.0};
+    input.ExpectWait(SETUP_QUOTE_INVALID);
+    input.tick.ask = 101.375;
+    input.settings.max_stop_atr = 1.0;
+    input.ExpectWait(SETUP_STOP_DISTANCE);
+    input = SetupFixture(false);
+    input.regime = {RANGE, REGIME_DIRECTION_BLOCKED, REGIME_CONSOLIDATION};
+    input.ExpectWait(SETUP_REGIME_BLOCKED);
+    input = SetupFixture(false);
+    input.history.bars[0].time += 900;
+    input.ExpectWait(SETUP_DATA_INVALID);
+    input = SetupFixture(false);
+    input.history.bars[0].low = EMPTY_VALUE;
+    input.ExpectWait(SETUP_DATA_INVALID);
+    input = SetupFixture(false);
+    input.settings.zone_atr = std::numeric_limits<double>::quiet_NaN();
+    input.ExpectWait(SETUP_DATA_INVALID);
+}
+
+void CheckSetupClaims() {
+    claim_file = {};
+    const string path = AurumSetupClaimPath("XAUUSDm");
+    assert(path == "Aurum_setup_m15_005800410055005500530044006D.bin");
+    assert(path != AurumSetupClaimPath("XAUUSDM"));
+    datetime watermark = 0;
+    claim_file.locked = true;
+    assert(AurumClaimSetupBar(path, 37800, false, watermark) == SETUP_STATE_UNAVAILABLE);
+    assert(watermark == 0);
+    claim_file.locked = false;
+    assert(AurumClaimSetupBar(path, 37800, false, watermark) == SETUP_CLAIMED);
+    assert(AurumClaimSetupBar(path, 37800, false, watermark) == DUPLICATE_SIGNAL);
+    datetime after_restart = 0;
+    assert(AurumClaimSetupBar(path, 37800, false, after_restart) == DUPLICATE_SIGNAL);
+    assert(AurumClaimSetupBar(path, 36900, false, after_restart) == DUPLICATE_SIGNAL);
+    claim_file.fail_write = true;
+    assert(AurumClaimSetupBar(path, 38700, false, after_restart) == SETUP_STATE_UNAVAILABLE);
+    assert(after_restart == 37800 && !claim_file.locked);
+    claim_file.fail_write = false;
+    assert(AurumClaimSetupBar(path, 38700, false, after_restart) == SETUP_CLAIMED);
+    claim_file.fail_flush = true;
+    assert(AurumClaimSetupBar(path, 39600, false, after_restart) == SETUP_STATE_UNAVAILABLE);
+    assert(after_restart == 38700 && !claim_file.locked);
+    claim_file.size = 1;
+    assert(AurumClaimSetupBar(path, 40500, false, after_restart) == SETUP_STATE_UNAVAILABLE);
+    datetime tester = 0;
+    assert(AurumClaimSetupBar(path, 37800, true, tester) == SETUP_CLAIMED);
+    assert(AurumClaimSetupBar(path, 37800, true, tester) == DUPLICATE_SIGNAL);
+    tester = 0;
+    assert(AurumClaimSetupBar(path, 37800, true, tester) == SETUP_CLAIMED);
+}
+
 int main() {
     CheckSnapshot();
     CheckFailuresAndRetry();
     CheckLifecycle();
     CheckRegimeBoundariesAndInvalidation();
+    CheckSetupHistory();
+    CheckClosedBarSetups();
+    CheckSetupClaims();
 }

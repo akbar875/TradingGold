@@ -12,6 +12,8 @@
   memakai broker point, serta snapshot kausal M15/H1/H4.
 - AU-008: konfirmasi H4 closed-bar, klasifikasi market regime, filter arah dan
   pemblokiran pada data invalid di EA. Aksi tetap WAIT pada fase fondasi.
+- AU-009: evaluator trend pullback dan breakout-retest M15, invalidation dan
+  chase limit, serta deduplikasi kandidat teknikal per candle di Journal.
 
 ## 0.3.0.dev0 — 22 November 2026
 
