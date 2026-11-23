@@ -125,6 +125,39 @@ untuk pengujian tidak tersedia. Kompilasi MetaEditor **NOT RUN** karena
 compiler tidak tersedia. Pengujian sinyal final **NOT RUN** karena engine
 sinyal masih scaffold. Tes snapshot memverifikasi kontrak input ke engine.
 
+## AU-007 — indikator MQL5 closed-bar, 23 November 2026
+
+[PR #39](https://github.com/akbar875/TradingGold/pull/39), commit implementasi
+`19d7b8d`. `scripts/test_offline.ps1` **PASS**, 177 tes pada Windows dengan
+Python 3.12.14 dan MinGW g++ 14.2. Ruff, format, mypy, doctor offline, dan
+verifikasi hash keenam baseline lulus.
+
+Fixture C++ menjalankan `Indicators.mqh` produksi dengan API terminal stub.
+Tes memeriksa timeframe, periode, buffer, angka fixture, cutoff H1 tepat di
+pergantian jam, dan nilai H1 yang tetap sama ketika data setelah cutoff berubah.
+Kasus negatif meliputi periode invalid, pembuatan handle gagal sebagian,
+history atau kalkulasi belum siap, gap M15/H1, buffer parsial, EMPTY_VALUE,
+NaN, ATR negatif, rollover saat membaca, serta pemulihan pada tick berikutnya.
+Fixture memverifikasi pelepasan handle berulang dan pembuatan ulang.
+
+Compile MetaEditor **NOT RUN** (`COMPILER_UNAVAILABLE`, exit 2,
+`reports/mql5-status.txt`). Pengujian attach/detach, Strategy Tester, dan
+perbandingan nilai indikator native **NOT RUN** karena MetaEditor dan terminal
+tidak tersedia. Fixture memeriksa kontrak pembacaan dan cleanup offline.
+EA tetap menampilkan WAIT. BUY/SELL, ownership, dan retcode mengikuti issue
+engine sinyal dan eksekusi.
+
+Checklist verifikasi terminal untuk AU-007
+
+1. Jalankan `scripts/compile_mql5.ps1 -MetaEditor <path>` dan simpan log serta
+   EX5 baru.
+2. Di chart demo dengan preset Signal_Only, bandingkan nilai setiap buffer
+   dengan Data Window indikator bawaan untuk simbol, timestamp sumber,
+   timeframe, dan periode yang sama. Periksa pergantian M15 dan jam H1.
+   Selama candle M15 berjalan, nilai snapshot tertutup harus tetap sama.
+3. Uji history belum siap, periode invalid, lepas dan pasang ulang EA.
+   Periksa panel atau Journal untuk reason code serta status WAIT.
+
 ## Verifikasi manual yang masih dibutuhkan
 
 - Compile source dan include pada MetaEditor, periksa log/artifact baru.
