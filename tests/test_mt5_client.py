@@ -111,6 +111,10 @@ def test_doctor_reports_broker_properties_and_reads_only_closed_bars(mt5, capsys
     assert report["quote_status"] == report["history_status"] == "READY"
     assert report["common_files_status"] == "AVAILABLE"
     assert report["model_status"] == "NOT_IMPLEMENTED"
+    assert report["closed_snapshot"] == {
+        "decision_time_utc": NOW - 50,
+        "bar_open_times_utc": {tf: history(tf)[-1]["time"] for tf in TIMEFRAME_SECONDS},
+    }
     assert report["symbol"] == SYMBOL and report["server"] == "Broker-Demo"
     assert report["account_mask"] == "***32"
     assert report["leverage"] == 500 and report["leverage_matches_2000"] is False
@@ -221,11 +225,15 @@ def test_diagnostics_preserves_readiness_for_one_allowed_direction(mt5):
         ([bar(NOW - 7200, tick_volume=1.5), *history("H1", 1)], "HISTORY_PAYLOAD_INVALID"),
         ([bar(NOW - 7200, open="2400"), *history("H1", 1)], "HISTORY_PAYLOAD_INVALID"),
         ([bar(NOW - 7200, open=float("nan")), *history("H1", 1)], "DATA_PRICE_INVALID"),
-        ([bar(NOW - 7200, tick_volume=-1), *history("H1", 1)], "DATA_VOLUME_OR_SPREAD_INVALID"),
+        ([bar(NOW - 7200, tick_volume=-1), *history("H1", 1)], "DATA_VOLUME_INVALID"),
         (history("H1")[::-1], "DATA_TIMESTAMP_INVALID"),
         (history("H1", 1) * 2, "DATA_TIMESTAMP_INVALID"),
         ([*history("H1", 1), bar(NOW - 50)], "DATA_BAR_NOT_CLOSED"),
-        ([bar(NOW - 10800), bar(NOW - 7200)], "DATA_STALE"),
+        ([bar(NOW - 10850), bar(NOW - 7250)], "DATA_STALE"),
+        ([bar(NOW - 3710), *history("H1", 1)], "DATA_BAR_OVERLAP"),
+        ([bar(NOW - 10850), *history("H1", 1)], "DATA_GAP_UNEXPLAINED"),
+        ([*history("H1", 2)[:1], bar(NOW - 3650, spread=0.5)], "DATA_SPREAD_INVALID"),
+        ([*history("H1", 2)[:1], bar(NOW - 3650, high=24010)], "DATA_BAR_OUTLIER"),
     ],
 )
 def test_bad_history_is_visible_in_doctor_and_never_returned_as_data(mt5, rates, expected):
@@ -243,22 +251,106 @@ def test_bad_history_is_visible_in_doctor_and_never_returned_as_data(mt5, rates,
 
 
 @pytest.mark.parametrize("timeframe", TIMEFRAME_SECONDS)
-def test_fetch_returns_closed_utc_bars_and_source_metadata(mt5, capsys, timeframe):
+def test_fetch_returns_closed_utc_bars_and_source_metadata(mt5, capsys, timeframe, tmp_path):
     records = history(timeframe)
-    records[0]["time"] -= TIMEFRAME_SECONDS[timeframe]
+    seconds = TIMEFRAME_SECONDS[timeframe]
+    records[0]["time"] -= seconds
+    config = tmp_path / "history.yaml"
+    config.write_text(
+        f"history_session_closures_utc: [[{records[0]['time'] + seconds}, {records[1]['time']}]]\n",
+        encoding="utf-8",
+    )
     mt5.copy_rates_from_pos = lambda name, tf, start, count: (
         records if (name, tf, start, count) == (SYMBOL, timeframe, 1, 2) else None
     )
     mt5.account_info().trade_allowed = False
-    assert main(["fetch-data", "--symbol", SYMBOL, "--timeframe", timeframe, "--bars", "2"]) == 0
+    assert (
+        main(
+            [
+                "fetch-data",
+                "--symbol",
+                SYMBOL,
+                "--timeframe",
+                timeframe,
+                "--bars",
+                "2",
+                "--config",
+                str(config),
+            ]
+        )
+        == 0
+    )
     output = capsys.readouterr().out
     report = json.loads(output)
     assert report["status"] == "READY" and report["action"] == "WAIT"
     assert report["symbol"] == SYMBOL and report["timeframe"] == timeframe
     assert report["source"] == {"provider": "MetaTrader5", "server": "Broker-Demo"}
-    assert report["point"] == 0.01 and report["bars"] == records
+    assert report["point"] == 0.01
+    assert report["bars"] == [{**record, "spread_price": 0.23} for record in records]
     assert report["history"]["gap_timestamps_utc"] == [records[-1]["time"]]
+    assert report["history"]["gaps"] == [
+        {
+            "first_missing_open_utc": records[0]["time"] + seconds,
+            "next_bar_open_utc": records[1]["time"],
+            "kind": "SCHEDULED_CLOSURE",
+        }
+    ]
     assert "98765432" not in output and mt5.calls[-1] == "shutdown"
+
+
+def test_fetch_cli_exits_nonzero_on_unexplained_gap(mt5, capsys):
+    records = history("M15")
+    records[0]["time"] -= 900
+    mt5.copy_rates_from_pos = lambda *_: records
+    assert main(["fetch-data", "--symbol", SYMBOL, "--bars", "2"]) == 1
+    report = json.loads(capsys.readouterr().out)
+    assert report["status"] == "NOT_READY" and report["reason_code"] == "DATA_GAP_UNEXPLAINED"
+    assert report["action"] == "WAIT" and report["execution_available"] is False
+    assert report["history"]["gaps"][0]["kind"] == "UNKNOWN" and "bars" not in report
+
+
+def test_fetch_stale_at_exact_close_age_boundary(mt5):
+    mt5.copy_rates_from_pos = lambda *_: [bar(NOW - 2700), bar(NOW - 1800)]
+    result = fetch_history(SYMBOL, "M15", 2)
+    assert result["reason_code"] == "DATA_STALE" and "bars" not in result
+    assert result["history"]["last_bar_close_age_seconds"] == 900
+
+
+def test_zero_historical_spread_can_be_exported_but_blocks_snapshot(mt5):
+    copy_rates = mt5.copy_rates_from_pos
+
+    def with_zero_spread(name, timeframe, start, count):
+        records = copy_rates(name, timeframe, start, count)
+        if timeframe == "M15":
+            records[-1]["spread"] = 0
+        return records
+
+    mt5.copy_rates_from_pos = with_zero_spread
+    result = fetch_history(SYMBOL, "M15", 2)
+    assert result["status"] == "READY" and result["bars"][-1]["spread_price"] is None
+    diagnostic = diagnose(SYMBOL)
+    assert (
+        diagnostic["status"] == "NOT_READY"
+        and diagnostic["reason_code"] == "DATA_SPREAD_UNAVAILABLE"
+    )
+
+
+def test_doctor_uses_h4_closed_before_m15_cutoff(mt5):
+    copy_rates = mt5.copy_rates_from_pos
+    newest_h4 = NOW - 30 - TIMEFRAME_SECONDS["H4"]
+    older_h4 = newest_h4 - TIMEFRAME_SECONDS["H4"]
+
+    def h4_closed_after_m15(name, timeframe, start, count):
+        if timeframe == "H4":
+            return [bar(older_h4), bar(newest_h4, close="malformed future value")]
+        return copy_rates(name, timeframe, start, count)
+
+    mt5.copy_rates_from_pos = h4_closed_after_m15
+    result = diagnose(SYMBOL)
+    assert result["status"] == "CONNECTED"
+    assert result["history"]["H4"]["last_bar_open_utc"] == older_h4
+    assert result["history"]["H4"]["evaluated_bars"] == 1
+    assert result["closed_snapshot"]["bar_open_times_utc"]["H4"] == older_h4
 
 
 @pytest.mark.parametrize("count", ["0", "-1", "100001"])

@@ -6,16 +6,22 @@ import time
 from collections.abc import Iterator
 from contextlib import contextmanager
 from dataclasses import asdict
-from numbers import Real
-from operator import index
+from numbers import Integral, Real
 from pathlib import Path
 from types import ModuleType
 from typing import Any
 
 from aurum.contracts import Bar
-from aurum.data_quality import gap_timestamps, validate_closed_bars
+from aurum.data_quality import (
+    DEFAULT_HISTORY_POLICY,
+    TIMEFRAME_SECONDS,
+    HistoryPolicy,
+    closed_snapshot,
+    history_gaps,
+    spread_to_price,
+    validate_closed_bars,
+)
 
-TIMEFRAME_SECONDS = {"M15": 900, "H1": 3600, "H4": 14400}
 MAX_HISTORY_BARS = 100_000
 DOCTOR_HISTORY_BARS = 2
 MAX_TICK_AGE_SECONDS = 120
@@ -198,24 +204,39 @@ def _tick_report(tick: Any, point: float, now_utc: float) -> dict[str, Any]:
     return {"time_utc": tick.time, "bid": tick.bid, "ask": tick.ask, "spread_points": spread_points}
 
 
-def _bar(row: Any) -> Bar:
-    timestamp, volume = row["time"], row["tick_volume"]
+def _bar_open_utc(row: Any) -> int:
+    timestamp = row["time"]
+    if isinstance(timestamp, bool) or not isinstance(timestamp, Integral):
+        raise TypeError("HISTORY_PAYLOAD_INVALID")
+    return int(timestamp)
+
+
+def _bar(row: Any, timestamp: int) -> Bar:
+    volume = row["tick_volume"]
     prices = [row[key] for key in ("open", "high", "low", "close", "spread")]
     if (
-        isinstance(timestamp, bool)
-        or isinstance(volume, bool)
+        isinstance(volume, bool)
+        or not isinstance(volume, Integral)
         or any(isinstance(value, bool) or not isinstance(value, Real) for value in prices)
     ):
         raise TypeError("HISTORY_PAYLOAD_INVALID")
     open_price, high, low, close, spread = map(float, prices)
-    return Bar(index(timestamp), open_price, high, low, close, index(volume), spread)
+    return Bar(timestamp, open_price, high, low, close, int(volume), spread)
 
 
 def _history(
-    mt5: ModuleType, symbol: str, timeframe: str, count: int, now_utc: int
+    mt5: ModuleType,
+    symbol: str,
+    timeframe: str,
+    count: int,
+    point: float,
+    policy: HistoryPolicy,
+    *,
+    decision_utc: int | None = None,
 ) -> tuple[dict[str, Any], list[Bar]]:
     seconds = TIMEFRAME_SECONDS[timeframe]
     rates = mt5.copy_rates_from_pos(symbol, getattr(mt5, f"TIMEFRAME_{timeframe}"), 1, count)
+    now_utc = int(time.time())
     report: dict[str, Any] = {"requested_bars": count, "received_bars": 0, "status": "NOT_READY"}
     try:
         if rates is None:
@@ -225,27 +246,39 @@ def _history(
             return {**report, "reason_code": "HISTORY_INSUFFICIENT"}, []
         if len(rates) > count:
             return {**report, "reason_code": "HISTORY_PAYLOAD_INVALID"}, []
-        bars = [_bar(row) for row in rates]
+        bars = []
+        for row in rates:
+            timestamp = _bar_open_utc(row)
+            if decision_utc is not None and decision_utc < timestamp + seconds <= now_utc:
+                continue
+            bars.append(_bar(row, timestamp))
     except (KeyError, TypeError, ValueError, IndexError, OverflowError):
         return {**report, "reason_code": "HISTORY_PAYLOAD_INVALID"}, []
+    if not bars:
+        return {**report, "reason_code": "WARMUP"}, []
+    cutoff = now_utc if decision_utc is None else decision_utc
     try:
-        validate_closed_bars(bars, now_utc=now_utc, seconds=seconds)
+        validate_closed_bars(bars, now_utc=cutoff, seconds=seconds, policy=policy, point=point)
     except ValueError as exc:
         return {**report, "reason_code": str(exc)}, []
 
     last_open = bars[-1].time
-    close_age = now_utc - (last_open + seconds)
-    stale = close_age >= seconds
+    close_age = cutoff - (last_open + seconds)
+    gaps = history_gaps(bars, seconds=seconds, policy=policy)
     report.update(
-        status="NOT_READY" if stale else "READY",
-        reason_code="DATA_STALE" if stale else "HISTORY_READY",
+        evaluated_bars=len(bars),
         first_bar_open_utc=bars[0].time,
         last_bar_open_utc=last_open,
         last_bar_close_utc=last_open + seconds,
         last_bar_close_age_seconds=close_age,
-        gap_timestamps_utc=gap_timestamps(bars, seconds=seconds),
+        gap_timestamps_utc=[gap.next_bar_open_utc for gap in gaps],
+        gaps=[asdict(gap) for gap in gaps],
     )
-    return report, [] if stale else bars
+    if close_age >= seconds:
+        return {**report, "reason_code": "DATA_STALE"}, []
+    if any(gap.kind == "UNKNOWN" for gap in gaps):
+        return {**report, "reason_code": "DATA_GAP_UNEXPLAINED"}, []
+    return {**report, "status": "READY", "reason_code": "HISTORY_READY"}, bars
 
 
 def _common_files_status(terminal: Any) -> str:
@@ -259,7 +292,7 @@ def _common_files_status(terminal: Any) -> str:
         return "UNAVAILABLE"
 
 
-def diagnose(symbol: str) -> dict[str, Any]:
+def diagnose(symbol: str, *, policy: HistoryPolicy = DEFAULT_HISTORY_POLICY) -> dict[str, Any]:
     report: dict[str, Any] = {
         "symbol": symbol,
         "connection_status": "NOT_READY",
@@ -297,10 +330,21 @@ def diagnose(symbol: str) -> dict[str, Any]:
                 report["quote_status"] = "READY"
                 report["spread_points"] = report["tick"]["spread_points"]
 
-            history = {
-                timeframe: _history(mt5, symbol, timeframe, DOCTOR_HISTORY_BARS, int(now))[0]
-                for timeframe in TIMEFRAME_SECONDS
-            }
+            history = {}
+            series = {}
+            decision_utc = None
+            for timeframe in TIMEFRAME_SECONDS:
+                history[timeframe], series[timeframe] = _history(
+                    mt5,
+                    symbol,
+                    timeframe,
+                    DOCTOR_HISTORY_BARS,
+                    info.point,
+                    policy,
+                    decision_utc=decision_utc,
+                )
+                if timeframe == "M15" and series[timeframe]:
+                    decision_utc = series[timeframe][-1].time + TIMEFRAME_SECONDS[timeframe]
             report["history"] = history
             history_ready = all(check["status"] == "READY" for check in history.values())
             report["history_status"] = "READY" if history_ready else "NOT_READY"
@@ -311,8 +355,16 @@ def diagnose(symbol: str) -> dict[str, Any]:
                 raise _Unavailable("MT5_TRADE_NOT_ALLOWED")
             if report["quote_status"] != "READY":
                 raise _Unavailable("TICK_INVALID_OR_STALE")
-            if not history_ready:
+            if not history_ready or decision_utc is None:
                 raise _Unavailable("HISTORY_NOT_READY")
+            try:
+                snapshot = closed_snapshot(series, decision_utc=decision_utc, policy=policy)
+            except ValueError as exc:
+                raise _Unavailable(str(exc)) from exc
+            report["closed_snapshot"] = {
+                "decision_time_utc": decision_utc,
+                "bar_open_times_utc": {timeframe: bar.time for timeframe, bar in snapshot.items()},
+            }
             if report["common_files_status"] != "AVAILABLE":
                 raise _Unavailable("COMMON_FILES_UNAVAILABLE")
     except _Unavailable as exc:
@@ -322,7 +374,13 @@ def diagnose(symbol: str) -> dict[str, Any]:
     return {**report, **_status("CONNECTED", "DIAGNOSTICS_ONLY")}
 
 
-def fetch_history(symbol: str, timeframe: str, count: int) -> dict[str, Any]:
+def fetch_history(
+    symbol: str,
+    timeframe: str,
+    count: int,
+    *,
+    policy: HistoryPolicy = DEFAULT_HISTORY_POLICY,
+) -> dict[str, Any]:
     if (
         timeframe not in TIMEFRAME_SECONDS
         or type(count) is not int
@@ -336,7 +394,7 @@ def fetch_history(symbol: str, timeframe: str, count: int) -> dict[str, Any]:
             info = _select_symbol(mt5, symbol)
             if not _finite(info.point) or info.point <= 0:
                 raise _Unavailable("SYMBOL_METADATA_INVALID")
-            history, bars = _history(mt5, symbol, timeframe, count, int(time.time()))
+            history, bars = _history(mt5, symbol, timeframe, count, info.point, policy)
             _verify_identity(mt5, identity)
             if not bars:
                 return {**_status("NOT_READY", history["reason_code"]), "history": history}
@@ -347,7 +405,10 @@ def fetch_history(symbol: str, timeframe: str, count: int) -> dict[str, Any]:
                 "timeframe": timeframe,
                 "point": info.point,
                 "history": history,
-                "bars": [asdict(bar) for bar in bars],
+                "bars": [
+                    {**asdict(bar), "spread_price": spread_to_price(bar.spread, info.point)}
+                    for bar in bars
+                ],
             }
     except _Unavailable as exc:
         return _status("NOT_READY", str(exc))

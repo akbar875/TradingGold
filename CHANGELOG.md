@@ -8,6 +8,8 @@
   timeout proses nyata, dan error input/output; compile MetaEditor tetap NOT RUN.
 - Publisher completion opt-in memverifikasi issue milik sendiri dan PR merged
   ke main; default dry-run tetap dipertahankan.
+- AU-006: validasi OHLCV, gap sesi UTC, overlap, dan outlier, konversi spread
+  memakai broker point, serta snapshot kausal M15/H1/H4.
 
 ## 0.3.0.dev0 — 22 November 2026
 

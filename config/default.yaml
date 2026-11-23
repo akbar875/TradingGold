@@ -25,3 +25,5 @@ partial_tp: false
 label_horizon_bars: 8
 random_seed: 42
 signal_ttl_seconds: 120
+history_max_bar_move_percent: 10.0
+history_session_closures_utc: []

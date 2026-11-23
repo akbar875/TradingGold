@@ -65,7 +65,8 @@ def test_invalid_symbol_override_stops_before_mt5(monkeypatch, capsys, symbol):
 
 
 def test_symbol_override_is_displayed_and_used(monkeypatch, capsys):
-    def diagnose(symbol):
+    def diagnose(symbol, *, policy):
+        assert policy.max_bar_move_percent == 10
         return {"status": "CONNECTED", "symbol": symbol}
 
     monkeypatch.setattr("aurum.cli.diagnose", diagnose)

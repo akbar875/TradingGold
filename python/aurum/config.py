@@ -8,6 +8,8 @@ from typing import Any
 
 import yaml
 
+from aurum.data_quality import HistoryPolicy
+
 
 class _ConfigLoader(yaml.SafeLoader):
     def construct_mapping(self, node: yaml.MappingNode, deep: bool = False) -> dict[Hashable, Any]:
@@ -54,6 +56,8 @@ class Settings:
     label_horizon_bars: int = 8
     random_seed: int = 42
     signal_ttl_seconds: int = 120
+    history_max_bar_move_percent: float = 10.0
+    history_session_closures_utc: tuple[tuple[int, int], ...] = ()
 
     def __post_init__(self) -> None:
         defaults = {f.name: f.default for f in fields(self)}
@@ -89,6 +93,10 @@ class Settings:
             raise ValueError("EXECUTION_NOT_IMPLEMENTED: gunakan SIGNAL_ONLY")
         if self.live_trading_confirmation or self.partial_tp:
             raise ValueError("EXECUTION_NOT_IMPLEMENTED")
+        self.history_policy()
+
+    def history_policy(self) -> HistoryPolicy:
+        return HistoryPolicy(self.history_max_bar_move_percent, self.history_session_closures_utc)
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
@@ -113,4 +121,9 @@ def load_config(path: str | Path) -> Settings:
         if not isinstance(value, list) or not all(isinstance(x, str) for x in value):
             raise ValueError("CONFIG_CONFIRMATION_TIMEFRAMES_INVALID")
         payload["confirmation_timeframes"] = tuple(value)
+    if "history_session_closures_utc" in payload:
+        closures = payload["history_session_closures_utc"]
+        if not isinstance(closures, list) or not all(isinstance(pair, list) for pair in closures):
+            raise ValueError("CONFIG_HISTORY_CLOSURES_INVALID")
+        payload["history_session_closures_utc"] = tuple(tuple(pair) for pair in closures)
     return Settings(**payload)
